@@ -1,0 +1,3240 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>شجرة العائلة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment:#F7F2E7;
+    --parchment-deep:#EFE7D4;
+    --ink:#20302E;
+    --ink-soft:#4B5A57;
+    --gold:#B98A2E;
+    --gold-soft:#E6C77E;
+    --male:#3E6E8E;
+    --male-deep:#2A4E67;
+    --female:#B15C6C;
+    --female-deep:#8B3F4E;
+    --grey:#8D8577;
+    --grey-deep:#6B6458;
+    --danger:#A63E3E;
+    --line:#C9BFA4;
+    --card-bg:#FFFCF5;
+    --shadow: 0 6px 18px rgba(32,48,46,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--parchment);font-family:'Cairo',sans-serif;color:var(--ink);overflow:hidden;}
+  .brand-font{font-family:'Markazi Text',serif;}
+
+  #app{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column;}
+
+  /* ===== Topbar ===== */
+  #topbar{
+    display:flex;align-items:center;gap:8px;padding:10px 16px;
+    background:linear-gradient(180deg,var(--parchment-deep),var(--parchment));
+    border-bottom:2px solid var(--line);z-index:30;flex-wrap:wrap;
+  }
+  @media (max-width: 700px){
+    #topbar{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:8px 10px; gap:6px; }
+    #topbar::-webkit-scrollbar{ height:4px; }
+    #topbar h1{ font-size:19px; margin-left:4px; flex-shrink:0; }
+    #topbar .tb-btn{ flex-shrink:0; padding:6px 10px; font-size:12.5px; }
+    #topbar .tb-spacer{ display:none; }
+    #topbar #search-input{ width:100px !important; flex-shrink:0; }
+    #topbar .tb-stat{ flex-shrink:0; white-space:nowrap; }
+  }
+  #topbar h1{font-family:'Markazi Text',serif;font-size:26px;font-weight:700;margin:0 10px 0 0;color:var(--ink);letter-spacing:.5px;}
+  .tb-btn{
+    display:flex;align-items:center;gap:6px;background:var(--card-bg);border:1.5px solid var(--line);
+    color:var(--ink);padding:7px 12px;border-radius:9px;font-family:'Cairo';font-size:13.5px;font-weight:600;
+    cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .tb-btn:hover{border-color:var(--gold);transform:translateY(-1px);box-shadow:var(--shadow);}
+  .tb-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+  .tb-btn.danger:hover{border-color:var(--danger);}
+  .tb-spacer{flex:1;}
+  .tb-stat{font-size:12.5px;color:var(--ink-soft);background:var(--gold-soft);padding:6px 12px;border-radius:20px;font-weight:700;}
+
+  /* ===== Canvas ===== */
+  #canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;background:
+      radial-gradient(circle at 1px 1px, rgba(140,130,100,0.18) 1px, transparent 0) 0 0/26px 26px, var(--parchment);}
+  #canvas-wrap.grabbing{cursor:grabbing;}
+  svg#tree-svg{position:absolute;top:0;left:0;}
+
+  .node-rect{stroke-width:2.5;cursor:pointer;filter:drop-shadow(0 3px 5px rgba(32,48,46,.18));transition:filter .15s;}
+  @keyframes search-pulse{
+    0%,100%{ stroke:var(--gold); stroke-width:3; filter:drop-shadow(0 0 0 rgba(185,138,46,0)); }
+    50%{ stroke:var(--gold); stroke-width:6.5; filter:drop-shadow(0 0 14px rgba(185,138,46,.85)); }
+  }
+  .node-rect.search-highlight{ animation: search-pulse 0.7s ease-in-out 3; }
+  @keyframes blood-flow{ to{ stroke-dashoffset:-24; } }
+  .lineage-flow{
+    stroke:#8B1420; stroke-width:5; stroke-linecap:round;
+    stroke-dasharray:10,6; animation: blood-flow 0.6s linear infinite;
+    filter: drop-shadow(0 0 4px rgba(139,20,32,.6));
+  }
+  .node-rect.descendant-highlight{ stroke:#2E7D46 !important; stroke-width:4.5; filter: drop-shadow(0 0 6px rgba(46,125,70,.6)); }
+  .node-rect:hover{filter:drop-shadow(0 5px 10px rgba(32,48,46,.3));}
+  .node-name{font-family:'Cairo';font-weight:700;pointer-events:none;user-select:none;}
+  .node-sub{font-family:'Cairo';font-weight:500;pointer-events:none;user-select:none;}
+  .node-group{opacity:1;transition:opacity .2s;}
+  .node-group.dim{opacity:.22;}
+  .link-line{fill:none;transition:stroke .15s, stroke-width .15s, opacity .2s;}
+  .link-line.dim{opacity:.15;}
+  .link-line.hoverable:hover{stroke:var(--gold)!important;stroke-width:4.5;}
+  .marriage-plus{font-family:'Cairo';font-weight:800;fill:var(--gold-soft);stroke:var(--ink-soft);stroke-width:.6;pointer-events:none;}
+  .pin-badge{cursor:pointer;}
+  .empty-hint{font-family:'Markazi Text';font-size:30px;fill:var(--ink-soft);opacity:.55;}
+
+  /* ===== Radial / floating menu ===== */
+  #radial-menu{position:absolute;z-index:50;display:none;flex-direction:column;gap:6px;
+    background:var(--card-bg);border:1.5px solid var(--line);border-radius:14px;padding:8px;box-shadow:var(--shadow);}
+  #radial-menu button{display:flex;align-items:center;gap:8px;border:none;background:transparent;
+    padding:8px 14px;border-radius:9px;font-family:'Cairo';font-weight:700;font-size:13.5px;cursor:pointer;text-align:right;width:100%;}
+  #radial-menu button:hover{background:var(--parchment-deep);}
+  #radial-menu .rm-del{color:var(--danger);}
+  #radial-menu .rm-edit{color:var(--male-deep);}
+  #radial-menu .rm-add{color:#2E7D46;}
+  #radial-menu .rm-share{color:var(--gold);}
+  #radial-menu .rm-caption{font-size:12px;color:var(--ink-soft);padding:2px 14px 6px;border-bottom:1px solid var(--line);margin-bottom:2px;font-weight:600;}
+
+  /* ===== Modal ===== */
+  .modal-overlay{position:fixed;inset:0;background:rgba(32,48,46,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--card-bg);border-radius:16px;max-width:480px;width:100%;max-height:88vh;overflow:auto;
+    box-shadow:0 20px 50px rgba(32,48,46,.35);border:1px solid var(--line);}
+  .modal-head{padding:18px 22px;border-bottom:2px solid var(--parchment-deep);display:flex;align-items:center;justify-content:space-between;}
+  .modal-head h2{font-family:'Markazi Text';font-size:24px;margin:0;font-weight:700;}
+  .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-soft);}
+  .modal-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px;}
+  .modal-foot{padding:16px 22px;border-top:2px solid var(--parchment-deep);display:flex;gap:10px;justify-content:flex-end;}
+  .field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink-soft);}
+  .field input[type=text], .field select, .field textarea{
+    width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:'Cairo';font-size:14.5px;background:#fff;}
+  .field input:focus, .field select:focus{outline:none;border-color:var(--gold);}
+  .row2{display:flex;gap:10px;}
+  .row2 .field{flex:1;}
+  .radio-group{display:flex;gap:14px;}
+  .radio-opt{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn{padding:9px 18px;border-radius:9px;border:1.5px solid var(--line);background:#fff;font-family:'Cairo';font-weight:700;cursor:pointer;font-size:13.5px;}
+  .btn-primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .btn-primary:hover{background:var(--male-deep);}
+  .btn-danger{background:var(--danger);color:#fff;border-color:var(--danger);}
+  .hint{font-size:12px;color:var(--ink-soft);line-height:1.7;background:var(--parchment-deep);padding:10px 12px;border-radius:9px;}
+  .link-box{display:flex;gap:8px;align-items:center;}
+  .link-box input{flex:1;font-size:12.5px;background:var(--parchment-deep)!important;}
+  .diff-item{border:1.5px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+  .diff-item .diff-name{font-weight:800;}
+  .diff-vals{display:flex;gap:8px;}
+  .diff-val{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px;font-size:13px;cursor:pointer;text-align:center;}
+  .diff-val.chosen{background:var(--gold-soft);border-color:var(--gold);}
+  .diff-status{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:20px;align-self:flex-start;}
+  .status-pending{background:#EEE3C4;color:#7A5C10;}
+  .status-agreed{background:#D3EAD6;color:#1F6B31;}
+  .status-conflict{background:#F1D3D3;color:#8A2B2B;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:11px 20px;border-radius:30px;font-size:13.5px;font-weight:600;z-index:200;opacity:0;transition:.25s;pointer-events:none;box-shadow:var(--shadow);}
+  .toast.show{opacity:1;}
+
+  #zoom-controls{position:absolute;bottom:20px;left:20px;display:flex;flex-direction:column;gap:6px;z-index:20;}
+  #zoom-controls button{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--card-bg);font-size:18px;cursor:pointer;box-shadow:var(--shadow);font-weight:700;color:var(--ink);}
+
+  #legend{position:absolute;bottom:20px;right:20px;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;font-size:11.5px;z-index:20;box-shadow:var(--shadow);line-height:2;color:var(--ink-soft);}
+  #legend b{color:var(--ink);}
+  .lg-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:5px;vertical-align:middle;}
+
+  #readonly-banner{position:absolute;top:0;left:0;right:0;background:var(--gold);color:#2a1f04;text-align:center;
+    padding:6px;font-weight:700;font-size:13px;z-index:40;display:none;}
+  @media print{
+    #topbar, #zoom-controls, #legend, #readonly-banner, .modal-overlay { display:none !important; }
+    #canvas-wrap { overflow:visible !important; position:static !important; }
+    svg#tree-svg { position:static !important; transform:none !important; }
+    body, #app { overflow:visible !important; height:auto !important; }
+    /* names were unreadably small on paper -- bump every text element up noticeably */
+    .node-name{ font-size:19px !important; font-weight:800 !important; }
+    .node-sub{ font-size:14px !important; }
+    .marriage-plus{ font-size:20px !important; }
+    .link-line{ stroke-width:3 !important; }
+    body.printing-book > *:not(#family-book-container){ display:none !important; }
+    body.printing-book #family-book-container{ display:block !important; }
+  }
+  .book-person{ break-inside:avoid; border-bottom:1px solid #C9BFA4; padding:14px 0; display:flex; gap:16px; }
+  .book-person img{ width:70px; height:70px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="readonly-banner">🔒 وضع العرض فقط — رابط مشاركة للقراءة &nbsp;
+    <button id="btn-clone-editable" style="margin-right:10px;padding:4px 12px;border-radius:16px;border:1.5px solid #2a1f04;background:#fff;font-weight:700;font-size:12.5px;cursor:pointer">📋 احفظ نسخة قابلة للتعديل عندي</button>
+  </div>
+  <div id="birthday-banner" style="display:none;background:var(--gold-soft);color:var(--ink);text-align:center;padding:7px 14px;font-size:13px;font-weight:700;position:relative;z-index:35">
+    <span id="birthday-banner-text"></span>
+    <button id="birthday-banner-close" style="margin-right:10px;background:none;border:none;font-weight:700;cursor:pointer;font-size:14px">✕</button>
+  </div>
+  <div id="subtree-banner" style="display:none;background:#DDE3EE;color:var(--ink);text-align:center;padding:7px 14px;font-size:13px;font-weight:700;position:relative;z-index:35;align-items:center;justify-content:center;gap:10px">
+    <span>📄 أنت الآن في: <span id="subtree-banner-name"></span> -- بيانات منفصلة تمامًا عن الشجرة الرئيسية</span>
+    <button id="subtree-back" class="tb-btn" style="background:var(--ink);color:#fff;border-color:var(--ink);font-weight:800">🌳 رجوع للشجرة الرئيسية</button>
+  </div>
+  <div id="topbar">
+    <h1 class="brand-font">🌳 شجرة العائلة</h1>
+    <button class="tb-btn" id="btn-add-root">➕ إضافة شخص</button>
+    <button class="tb-btn" id="btn-edit-toolbar" disabled>✏️ تعديل</button>
+    <button class="tb-btn danger" id="btn-del-toolbar" disabled>🗑️ حذف</button>
+    <button class="tb-btn" id="btn-undo">↩️ تراجع</button>
+    <button class="tb-btn" id="btn-redo">↪️ إعادة</button>
+    <button class="tb-btn" id="btn-center">🎯 توسيط</button>
+    <button class="tb-btn" id="btn-share">🔗 مشاركة</button>
+    <button class="tb-btn" id="btn-events">📅 الأحداث</button>
+    <div class="tb-stat" id="doc-stat">التوثيق: 0%</div>
+    <div class="tb-spacer"></div>
+    <div class="field" style="margin:0;position:relative">
+      <input type="text" id="search-input" placeholder="🔎 بحث بالاسم..." style="padding:7px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:Cairo;font-size:13px;width:140px">
+      <div id="search-results" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--card-bg);border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);z-index:60;min-width:200px;max-height:260px;overflow:auto"></div>
+    </div>
+    <div style="position:relative">
+      <button class="tb-btn" id="btn-tree-switcher">📄 الصفحة</button>
+      <div id="tree-switcher-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:8px;width:240px;max-height:60vh;overflow-y:auto;flex-direction:column;gap:4px">
+        <div id="tree-switcher-list" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
+    <div style="position:relative">
+      <button class="tb-btn" id="btn-more">☰ المزيد</button>
+      <div id="tb-more-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:auto;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:8px;width:220px;max-height:70vh;overflow-y:auto;flex-direction:column;gap:4px">
+        <button class="tb-btn" id="btn-kinship" style="width:100%">🧬 صلة القرابة</button>
+        <button class="tb-btn" id="btn-backup" style="width:100%">💾 نسخة احتياطية</button>
+        <button class="tb-btn" id="btn-export" style="width:100%">🖼️ تصدير/طباعة</button>
+        <button class="tb-btn" id="btn-settings" style="width:100%">⚙️ الإعدادات</button>
+        <button class="tb-btn" id="btn-more-expand" style="width:100%">⋯ المزيد من الخيارات</button>
+        <div id="tb-more-rest" style="display:none;flex-direction:column;gap:4px">
+          <button class="tb-btn" id="btn-transfer" style="width:100%">👑 نقل الإدارة</button>
+          <button class="tb-btn" id="btn-secret" style="width:100%">🔑 المفتاح السري</button>
+          <button class="tb-btn" id="btn-merge" style="width:100%">🌿 دمج الشجرة</button>
+          <button class="tb-btn" id="btn-health" style="width:100%">🩺 فحص الشجرة</button>
+          <button class="tb-btn" id="btn-activity-log" style="width:100%">📜 سجل التغييرات</button>
+          <button class="tb-btn" id="btn-restore" style="width:100%">📂 استعادة</button>
+          <input type="file" id="restore-file" accept=".json" style="display:none">
+          <button class="tb-btn" id="btn-stats" style="width:100%">📊 إحصائيات</button>
+          <button class="tb-btn" id="btn-gedcom" style="width:100%">📜 تصدير GEDCOM</button>
+          <button class="tb-btn" id="btn-family-book" style="width:100%">📖 الكتاب العائلي (PDF)</button>
+          <button class="tb-btn" id="btn-checklist" style="width:100%">❓ إيه الناقص؟</button>
+          <button class="tb-btn" id="btn-received-events" style="width:100%">📥 دعوات استلمتها</button>
+          <button class="tb-btn" id="btn-received-copies" style="width:100%">📥 نسخ مستلمة</button>
+          <button class="tb-btn" id="btn-ultimate-ancestor" style="width:100%">🏛️ الجد الأعلى (اسم نهائي)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="zoom-controls">
+      <button id="zoom-in">+</button>
+      <button id="zoom-reset">⟳</button>
+      <button id="zoom-out">−</button>
+    </div>
+    <div id="legend">
+      <div><span class="lg-swatch" style="background:var(--male)"></span><b>ذكر</b></div>
+      <div><span class="lg-swatch" style="background:var(--female)"></span><b>أنثى</b></div>
+      <div><span class="lg-swatch" style="background:var(--grey)"></span><b>مجهول</b></div>
+      <div>⟍ خط مائل = متوفى &nbsp; 📌 = تكرار الشخص</div>
+      <div>— خط متصل = مؤكد &nbsp; ┄ خط متقطع = غير مؤكد</div>
+    </div>
+  </div>
+</div>
+
+<div id="radial-menu"></div>
+
+<!-- Add / Edit Person Modal -->
+<div class="modal-overlay" id="modal-person">
+  <div class="modal">
+    <div class="modal-head"><h2 id="person-modal-title">إضافة شخص</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint" id="add-person-tip" style="display:none">💡 نصيحة: يفضّل دايمًا تبدأ الشجرة بأقدم <b>شخص ذكر</b> تعرفه في العائلة (زي الجد الأكبر) -- مش أنثى، لأن النسب في هذا النظام يُبنى من جهة الأب. وبعدين تضيف زوجته وأبناءه بالترتيب من فوق لتحت -- ده بيخلي بناء الشجرة أدق وأسهل.</div>
+      <div class="field" style="display:flex;align-items:center;gap:12px">
+        <img id="f-photo-preview" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:1.5px solid var(--line);display:none">
+        <div style="flex:1">
+          <label>صورة شخصية (اختياري)</label>
+          <input type="file" id="f-photo" accept="image/*">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>الاسم *</label><input type="text" id="f-first" placeholder="مطلوب"></div>
+        <div class="field"><label>اللقب (اختياري)</label><input type="text" id="f-last" placeholder="اختياري"></div>
+      </div>
+      <div class="field">
+        <label>النوع *</label>
+        <div class="radio-group">
+          <label class="radio-opt"><input type="radio" name="f-gender" value="m" checked> 🔵 ذكر</label>
+          <label class="radio-opt"><input type="radio" name="f-gender" value="f"> 🔴 أنثى</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>الحالة</label>
+        <div class="radio-group">
+          <label class="radio-opt"><input type="radio" name="f-alive" value="alive" checked> حي</label>
+          <label class="radio-opt"><input type="radio" name="f-alive" value="dead"> متوفى</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>الحالة الصحية (اختياري)</label>
+        <select id="f-care-status">
+          <option value="">معافى</option>
+          <option value="needs_care">يحتاج رعاية</option>
+        </select>
+      </div>
+      <div class="field" id="f-deathconf-wrap" style="display:none">
+        <label class="radio-opt"><input type="checkbox" id="f-deathconf"> تأكيد الوفاة (خط غامق)</label>
+      </div>
+      <div class="field">
+        <label>رقم الواتساب (اختياري - مخفي دائمًا، لا يظهر كنص لأحد)</label>
+        <input type="text" id="f-whatsapp" placeholder="مثال: 201xxxxxxxxx (بمفتاح الدولة)">
+      </div>
+      <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+        <label class="radio-opt"><input type="checkbox" id="f-contact-enabled"> السماح بزر "تواصل واتساب مباشر" لهذا الشخص</label>
+        <div style="margin-top:8px">
+          <label style="font-weight:600;font-size:12.5px;color:var(--ink-soft)">أو التواصل يتم عبر شخص آخر بدلاً منه (اختياري)</label>
+          <select id="f-contact-via"><option value="">-- بدون --</option></select>
+        </div>
+        <div class="hint" style="margin-top:6px">افتراضيًا التواصل المباشر مقفول حفاظًا على الخصوصية. لو العائلة مش عايزة الميزة دي خالص، تقدر تقفلها بالكامل من ⚙️ الإعدادات.</div>
+      </div>
+      <details class="field" style="border:1.5px solid var(--line);border-radius:9px;padding:8px 12px">
+        <summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--ink-soft)">بطاقة الشخص - بيانات إضافية اختيارية</summary>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+          <div class="row2">
+            <div class="field"><label>رقم الهاتف 1</label><input type="text" id="f-phone1"></div>
+            <div class="field"><label>رقم الهاتف 2</label><input type="text" id="f-phone2"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>السكن 1</label><input type="text" id="f-addr1"></div>
+            <div class="field"><label>السكن 2</label><input type="text" id="f-addr2"></div>
+          </div>
+          <div class="field"><label>البريد الإلكتروني</label><input type="text" id="f-email"></div>
+          <div class="row2">
+            <div class="field"><label>تاريخ الميلاد</label><input type="text" id="f-birthdate" placeholder="مثال: 1990"></div>
+            <div class="field"><label>تاريخ الوفاة</label><input type="text" id="f-deathdate" placeholder="مثال: 2020"></div>
+          </div>
+          <div class="field"><label>المهنة</label><input type="text" id="f-job"></div>
+        </div>
+      </details>
+      <div class="field" id="f-parents-wrap" style="display:none;background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+        <label>تصحيح الأب/الأم (لو اتحطوا غلط بالخطأ)</label>
+        <div class="row2" style="margin-top:6px">
+          <div class="field"><label style="font-size:12px">الأب الحالي</label><select id="f-current-father"><option value="">-- بدون --</option></select></div>
+          <div class="field"><label style="font-size:12px">الأم الحالية</label><select id="f-current-mother"><option value="">-- بدون --</option></select></div>
+        </div>
+        <div class="hint" style="margin-top:6px">لو غيّرت هنا، هيتم فك الارتباط بالأب/الأم القديم وربطه بالجديد اللي اخترته (أو تسيبه بدون لو مش عايز حد).</div>
+      </div>
+      <div class="field" id="f-alias-wrap">
+        <label>هل هذا الشخص موجود بالفعل في الشجرة؟ (لإظهاره برمز 📌 التكرار)</label>
+        <select id="f-alias"><option value="">-- شخص جديد تماماً --</option></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button>
+      <button class="btn btn-primary" id="btn-save-person">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Relation Modal -->
+<div class="modal-overlay" id="modal-relation">
+  <div class="modal">
+    <div class="modal-head"><h2>إضافة شخص ذو علاقة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="relation-body"></div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button>
+      <button class="btn btn-primary" id="btn-save-relation">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<!-- Share choice: view-only vs editable copy -->
+<div class="modal-overlay" id="modal-share-choice">
+  <div class="modal">
+    <div class="modal-head"><h2>مشاركة الشجرة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint">اختار نوع الرابط اللي عايز تبعته. في الحالتين مبيتشاركش أي بيانات حساسة (هاتف، سكن، بريد، تواريخ، مهنة، أحداث) — بس الأسامي والعلاقات.</div>
+      <button class="btn" id="share-choice-view" style="text-align:right;padding:14px 16px">
+        <div style="font-weight:800">🔍 رابط للمشاهدة فقط</div>
+        <div style="font-weight:400;font-size:12.5px;color:var(--ink-soft);margin-top:4px">يقدر يتصفح الشجرة بس، من غير أي تعديل.</div>
+      </button>
+      <button class="btn" id="share-choice-copy" style="text-align:right;padding:14px 16px;margin-top:8px">
+        <div style="font-weight:800">📋 رابط نسخة قابلة للتعديل</div>
+        <div style="font-weight:400;font-size:12.5px;color:var(--ink-soft);margin-top:4px">بيفتح مباشرة كنسخة مستقلة عنده يقدر يكمل عليها بنفسه.</div>
+      </button>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>إلغاء</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-share">
+  <div class="modal">
+    <div class="modal-head"><h2 id="share-modal-title">مشاركة الشجرة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint" id="share-modal-hint">رابط للقراءة فقط — لا تظهر فيه أزرار التحكم ولا بيانات البطاقة الشخصية.</div>
+      <div class="link-box"><input type="text" id="share-link-general" readonly><button class="btn" data-copy="share-link-general">نسخ</button></div>
+      <div class="hint" style="margin-top:6px">لتأكيد علاقة شخص معيّن، افتح القائمة على بطاقته ثم اختر 🔗 مشاركة لتأكيد العلاقة.</div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>تم</button></div>
+  </div>
+</div>
+
+<!-- Confirm relation modal (simulated other-side confirmation) -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal">
+    <div class="modal-head"><h2>رابط تأكيد العلاقة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="confirm-body"></div>
+    <div class="modal-foot"><button class="btn" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Family events timeline -->
+<div class="modal-overlay" id="modal-events">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head"><h2>📅 سجل أحداث العائلة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="events-timeline-body"></div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal">
+    <div class="modal-head"><h2>⚙️ الإعدادات</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+        <label class="radio-opt"><input type="checkbox" id="settings-whatsapp-enabled"> تفعيل التواصل المباشر عبر واتساب في الشجرة كلها</label>
+        <div class="hint" style="margin-top:6px">لو قفلته، هتختفي كل أزرار الواتساب المباشرة من كل مكان في التطبيق حتى لو شخص معيّن مفعّلها لنفسه. تقدر تفعّلها تاني في أي وقت.</div>
+      </div>
+      <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+        <label>🔒 رقم سري لفتح الشجرة (اختياري)</label>
+        <input type="text" id="settings-pin" placeholder="اتركه فارغًا لإلغاء القفل" style="margin-top:6px">
+        <div class="hint" style="margin-top:6px">حاجز بسيط لمنع أي حد يفتح نفس الجهاز من رؤية الشجرة مباشرة -- مش تشفير حقيقي، بس عائق أولي.</div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" id="btn-save-settings">حفظ</button></div>
+  </div>
+</div>
+
+<!-- PIN lock overlay -->
+<div class="modal-overlay" id="modal-onboarding">
+  <div class="modal">
+    <div class="modal-head"><h2>🌳 أهلاً بيك!</h2></div>
+    <div class="modal-body">
+      <div class="hint" style="font-size:14px;line-height:2.1">
+        <div><b>1️⃣ أضف شخص جديد</b> -- زرار "➕ إضافة شخص" (ابدأ بأقدم شخص ذكر تعرفه).</div>
+        <div><b>2️⃣ افتح قائمته</b> -- دوس على صندوقه، واختار "📌 إضافة شخص ذو علاقة".</div>
+        <div><b>3️⃣ حدد العلاقة والاسم واحفظ</b> -- اختار نوع العلاقة (زوجة/ابن/ابنة...)، اكتب الاسم، ودوس حفظ. وكمّل بنفس الطريقة.</div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" id="btn-onboarding-done">فهمت، يلا نبدأ 🚀</button></div>
+  </div>
+</div>
+
+<div id="pin-lock-overlay" style="display:none;position:fixed;inset:0;background:var(--parchment);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:14px">
+  <div class="brand-font" style="font-size:28px">🔒 الشجرة مقفولة</div>
+  <input type="password" id="pin-lock-input" placeholder="الرقم السري" style="padding:10px 16px;border:1.5px solid var(--line);border-radius:9px;font-family:Cairo;font-size:15px;width:220px;text-align:center">
+  <div id="pin-lock-error" style="display:none;color:var(--danger);font-size:13px;font-weight:700">رقم سري غلط، حاول تاني</div>
+  <button class="btn btn-primary" id="pin-lock-submit">فتح</button>
+</div>
+
+<div id="family-book-container" style="display:none"></div>
+
+<!-- Kinship calculator -->
+<div class="modal-overlay" id="modal-kinship">
+  <div class="modal">
+    <div class="modal-head"><h2>🧬 إيه صلة القرابة بينهم؟</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="row2">
+        <div class="field"><label>الشخص الأول</label><select id="kinship-a"></select></div>
+        <div class="field"><label>الشخص الثاني</label><select id="kinship-b"></select></div>
+      </div>
+      <button class="btn btn-primary" id="btn-calc-kinship">احسب العلاقة</button>
+      <div id="kinship-result" class="hint" style="display:none;font-size:15px"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="modal-overlay" id="modal-stats">
+  <div class="modal">
+    <div class="modal-head"><h2>📊 إحصائيات الشجرة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="stats-body"></div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Ultimate/distant ancestor (known family-name origin, unknown intermediate generations) -->
+<div class="modal-overlay" id="modal-ultimate-ancestor">
+  <div class="modal">
+    <div class="modal-head"><h2>🏛️ الجد الأعلى (اسم نهائي)</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint">لو عارف اسم الجد الأعلى اللي منه اسم العائلة، بس مش عارف تفاصيل الأجيال المتتالية بينه وبين أقدم شخص مسجّل عندك -- سجّله هنا وهيتربط فوق أقدم شخص في الشجرة بخط مميّز يوضّح إن فيه أجيال غير موثقة بينهم.</div>
+      <div class="field"><label>اسم الجد الأعلى *</label><input type="text" id="ua-name" placeholder="مطلوب"></div>
+      <div class="field"><label>يتصل فوق مين؟ (أقدم شخص معروف حاليًا في هذا الفرع)</label>
+        <select id="ua-target"></select>
+      </div>
+      <div class="hint">هيتم إنشاء زوجة مجهولة تلقائيًا له، زي باقي الأجداد.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button>
+      <button class="btn btn-primary" id="btn-save-ultimate-ancestor">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Activity log -->
+<div class="modal-overlay" id="modal-activity-log">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2>📜 سجل التغييرات</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="activity-log-body"></div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Tree health check -->
+<div class="modal-overlay" id="modal-health">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2>🩺 فحص سلامة الشجرة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="health-body"></div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="btn-health-fix">🔧 إصلاح المشاكل تلقائيًا</button>
+      <button class="btn" data-close>إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- What's missing checklist -->
+<div class="modal-overlay" id="modal-checklist">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2>❓ إيه الناقص؟</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="checklist-body"></div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Received event invitations -->
+<div class="modal-overlay" id="modal-received-events">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2>📥 دعوات استلمتها</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="received-events-body"></div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Received-copy sender info (shown once when importing a shared tree/page) -->
+<div class="modal-overlay" id="modal-received-info">
+  <div class="modal">
+    <div class="modal-head"><h2>📥 معلومات النسخة المستلمة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint">هتتحفظلك النسخة دي كصفحة منفصلة تمامًا، وتقدر ترجعلها أي وقت من "نسخ مستلمة".</div>
+      <div class="field">
+        <label>صفة الراسل</label>
+        <select id="recv-sender-relation">
+          <option value="">-- اختر --</option>
+          <option>أب</option><option>أم</option><option>أخ</option><option>أخت</option>
+          <option>زوج</option><option>زوجة</option><option>عم</option><option>عمة</option>
+          <option>خال</option><option>خالة</option><option>ابن عم</option><option>بنت عم</option>
+          <option>ابن خال</option><option>بنت خال</option><option>صديق العائلة</option><option>أخرى</option>
+        </select>
+        <input type="text" id="recv-sender-relation-other" placeholder="اكتب الصفة" style="margin-top:8px;display:none">
+      </div>
+      <div class="field"><label>اسم الراسل (ثلاثي يفضّل)</label><input type="text" id="recv-sender-name" placeholder="مثلاً: محمد أحمد علي" style="color:var(--ink-soft)"></div>
+      <div class="field"><label>عنوان الشجرة</label><input type="text" id="recv-tree-title" placeholder="مثلاً: عائلة محمد أحمد علي" style="color:var(--ink-soft)"></div>
+      <div class="hint">تاريخ الاستلام هيتسجّل تلقائيًا الآن.</div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" id="btn-save-received-info">حفظ</button></div>
+  </div>
+</div>
+
+<!-- Received copies list -->
+<div class="modal-overlay" id="modal-received-copies">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2>📥 نسخ مستلمة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="received-copies-body"></div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Person card (detail view) -->
+<div class="modal-overlay" id="modal-card">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2 id="card-title">بطاقة الشخص</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="card-body"></div>
+    <div class="modal-foot">
+      <button class="btn" id="card-edit-btn">✏️ تعديل البيانات</button>
+      <button class="btn btn-primary" data-close>إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer admin modal -->
+<div class="modal-overlay" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-head"><h2>👑 نقل الإدارة</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint">توليد رابط نقل لمرة واحدة، يُرسل عبر واتساب للطرف الجديد. عند فتحه يقبل الإدارة وتتحدث الصلاحيات تلقائياً.</div>
+      <div class="link-box"><input type="text" id="transfer-link" readonly><button class="btn" data-copy="transfer-link">نسخ</button></div>
+      <button class="btn" id="btn-gen-transfer">توليد رابط جديد</button>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>تم</button></div>
+  </div>
+</div>
+
+<!-- Secret key modal -->
+<div class="modal-overlay" id="modal-secret">
+  <div class="modal">
+    <div class="modal-head"><h2>🔑 المفتاح السري</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint">أي قريب يملك هذا المفتاح يستطيع استعادة إدارة الشجرة. ترتيب الأولوية: الأبناء ← أولاد العم ← أولاد العمة.</div>
+      <div class="link-box"><input type="text" id="secret-key" readonly><button class="btn" data-copy="secret-key">نسخ</button></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>تم</button></div>
+  </div>
+</div>
+
+<!-- Merge modal -->
+<div class="modal-overlay" id="modal-merge">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head"><h2>🌿 دمج الشجرتين</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="merge-body"></div>
+    <div class="modal-foot"><button class="btn" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================= STATE ============================= */
+let state = { people: {}, marriages: {}, settings: { whatsapp_enabled: true }, log: [] };
+let undoStack = [];
+let redoStack = [];
+let selectedId = null;
+let activeMenuPersonId = null;
+let camera = { x: 0, y: 0, scale: 1 };
+let isPanning = false, panStart = {x:0,y:0}, camStart = {x:0,y:0};
+let readOnly = false;
+let pendingRelation = null; // {baseId, type}
+let editingPersonId = null;
+let mergeState = null;
+
+const GEN_H = 190, NODE_W = 128, NODE_H = 58, SIB_GAP = 34, SPOUSE_GAP = 46,
+      FAMILY_GAP = 110, // gap between two independent family branches (different roots, or
+                         // half-siblings from a different mother/father) -- always much bigger
+                         // than the normal gap between full siblings so branches never visually merge
+      INLAW_STEP = 22;  // small vertical "step" that pushes a person who married INTO the
+                        // family a bit lower than their blood-line spouse -- a visual cue,
+                        // and it keeps the marriage line from reading as a perfectly flat
+                        // continuation of a neighbouring family's line
+
+function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
+
+/* ============================= PERSISTENCE ============================= */
+// Uses the browser's own localStorage -- works on any normal web host (Vercel, GitHub Pages,
+// or even a local file), unlike sandboxed artifact-only storage APIs.
+//
+// Multi-tree support: the "main" tree keeps the original storage key so nobody's existing data
+// moves. Any additional independent tree (e.g. "شجرة الجدة من طرف الأب") gets its own key. Only
+// ONE tree is ever loaded into `state` at a time -- switching trees saves the current one, then
+// loads the other. This means every existing feature (add/edit/delete, events, kinship
+// calculator, health check...) works identically on every tree, unmodified, since they all just
+// operate on whatever `state` currently holds. Merge is the one feature restricted to the main
+// tree, enforced separately below.
+const REGISTRY_KEY = 'family-tree-registry-v1';
+let currentTreeId = 'main';
+function storageKeyFor(treeId){ return treeId==='main' ? 'family-tree-data-v1' : 'family-tree-data-v1__'+treeId; }
+function loadRegistry(){
+  try{ return JSON.parse(localStorage.getItem(REGISTRY_KEY)||'[]'); }catch(e){ return []; }
+}
+function saveRegistry(list){
+  try{ localStorage.setItem(REGISTRY_KEY, JSON.stringify(list)); }catch(e){}
+}
+
+/* ============================= RECEIVED COPIES LOG (for genealogy enthusiasts) ============================= */
+const RECEIVED_LOG_KEY = 'family-tree-received-log-v1';
+function loadReceivedLog(){ try{ return JSON.parse(localStorage.getItem(RECEIVED_LOG_KEY)||'[]'); }catch(e){ return []; } }
+function saveReceivedLog(list){ try{ localStorage.setItem(RECEIVED_LOG_KEY, JSON.stringify(list)); }catch(e){} }
+let pendingReceivedData = null;
+function promptReceivedInfo(data){
+  pendingReceivedData = data;
+  document.getElementById('recv-sender-relation').value='';
+  document.getElementById('recv-sender-relation-other').value='';
+  document.getElementById('recv-sender-relation-other').style.display='none';
+  document.getElementById('recv-sender-name').value='';
+  document.getElementById('recv-tree-title').value='';
+  openModal('modal-received-info');
+}
+document.getElementById('recv-sender-relation').addEventListener('change',(e)=>{
+  document.getElementById('recv-sender-relation-other').style.display = e.target.value==='أخرى' ? '' : 'none';
+});
+document.getElementById('btn-save-received-info').addEventListener('click', async ()=>{
+  if(!pendingReceivedData) return;
+  const relationSel = document.getElementById('recv-sender-relation').value;
+  const relationOther = document.getElementById('recv-sender-relation-other').value.trim();
+  const senderRelation = relationSel==='أخرى' ? (relationOther||'أخرى') : (relationSel||'غير محدد');
+  const senderName = document.getElementById('recv-sender-name').value.trim();
+  const treeTitle = document.getElementById('recv-tree-title').value.trim();
+  const importedData = pendingReceivedData; pendingReceivedData = null;
+  closeAllModals();
+
+  const newTreeId = uid('tree');
+  const registry = loadRegistry();
+  registry.push({id:newTreeId, label: treeTitle||'نسخة مستلمة', type:'received', sortKey:Date.now()});
+  saveRegistry(registry);
+  const log = loadReceivedLog();
+  log.push({ id:newTreeId, receivedDate:new Date().toISOString(), senderRelation, senderName, treeTitle });
+  saveReceivedLog(log);
+
+  await switchToTree(newTreeId);
+  state = importedData;
+  if(!state.settings) state.settings = { whatsapp_enabled: true };
+  if(!state.log) state.log = [];
+  await saveData();
+  render(); centerTree();
+  toast('اتحفظت النسخة المستلمة كصفحة منفصلة -- تقدر ترجعلها من "نسخ مستلمة"');
+});
+document.getElementById('btn-received-copies').addEventListener('click',()=>{
+  const log = loadReceivedLog();
+  const body = document.getElementById('received-copies-body');
+  if(!log.length){ body.innerHTML = '<div class="hint">لسه معندكش أي نسخ مستلمة. لما تستقبل رابط شجرة أو صفحة قرابة من حد وتحفظها، هتتسجل هنا.</div>'; }
+  else {
+    body.innerHTML = log.slice().reverse().map(r=>{
+      const d = new Date(r.receivedDate);
+      const when = isNaN(d) ? '' : d.toLocaleDateString('ar-EG');
+      return `<div class="hint" style="cursor:pointer;margin-bottom:8px" data-open-tree="${r.id}">
+        <div style="font-weight:800;color:var(--ink)">📄 ${r.treeTitle||'بدون عنوان'}</div>
+        <div style="font-size:12.5px;margin-top:3px">من: ${r.senderName||'غير معروف'} (${r.senderRelation||'—'})</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">تاريخ الاستلام: ${when}</div>
+      </div>`;
+    }).join('');
+    body.querySelectorAll('[data-open-tree]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        closeAllModals();
+        await switchToTree(el.getAttribute('data-open-tree'));
+      });
+    });
+  }
+  openModal('modal-received-copies');
+});
+
+async function loadData(){
+  try{
+    const raw = localStorage.getItem(storageKeyFor(currentTreeId));
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state = parsed;
+      if(!state.settings) state.settings = { whatsapp_enabled: true };
+      if(!state.log) state.log = [];
+    } else if(currentTreeId!=='main'){
+      state = { people:{}, marriages:{}, settings:{ whatsapp_enabled:true }, log:[] };
+    }
+  }catch(e){ console.warn('load failed', e); }
+  updateTreePageUI();
+  if(state.settings && state.settings.pin){
+    document.getElementById('pin-lock-overlay').style.display='flex';
+    document.getElementById('pin-lock-input').focus();
+  } else {
+    render();
+    centerTree();
+    checkBirthdayBanner();
+    maybeShowOnboarding();
+  }
+}
+function maybeShowOnboarding(){
+  if(currentTreeId!=='main') return;
+  if(personList().filter(p=>!p.alias_of).length>0) return;
+  try{ if(localStorage.getItem('onboarding-shown')) return; }catch(e){}
+  openModal('modal-onboarding');
+}
+document.getElementById('btn-onboarding-done').addEventListener('click',()=>{
+  closeAllModals();
+  try{ localStorage.setItem('onboarding-shown','1'); }catch(e){}
+});
+function unlockAfterPin(){
+  render();
+  centerTree();
+  checkBirthdayBanner();
+}
+document.getElementById('pin-lock-submit').addEventListener('click', ()=>{
+  const val = document.getElementById('pin-lock-input').value;
+  if(state.settings && val===state.settings.pin){
+    document.getElementById('pin-lock-overlay').style.display='none';
+    unlockAfterPin();
+  } else {
+    document.getElementById('pin-lock-error').style.display='block';
+  }
+});
+document.getElementById('pin-lock-input').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter') document.getElementById('pin-lock-submit').click();
+});
+async function saveData(){
+  try{ localStorage.setItem(storageKeyFor(currentTreeId), JSON.stringify(state)); }catch(e){ console.warn('save failed', e); }
+}
+
+/* ============================= MULTI-TREE SWITCHING ============================= */
+async function switchToTree(treeId){
+  await saveData(); // persist whatever we're leaving
+  currentTreeId = treeId;
+  selectedId = null; activeFilterIds = null; highlightedLineageId = null; highlightedDescendantsId = null;
+  undoStack = []; redoStack = [];
+  await loadData();
+}
+function updateTreePageUI(){
+  const registry = loadRegistry();
+  const entry = registry.find(r=>r.id===currentTreeId);
+  const banner = document.getElementById('subtree-banner');
+  if(currentTreeId==='main'){
+    banner.style.display='none';
+  } else {
+    banner.style.display='flex';
+    document.getElementById('subtree-banner-name').textContent = entry? entry.label : 'شجرة مستقلة';
+  }
+  // merging only ever applies to the main tree
+  document.getElementById('btn-merge').style.display = currentTreeId==='main' ? '' : 'none';
+  refreshTreeSwitcherMenu();
+}
+function refreshTreeSwitcherMenu(){
+  const registry = loadRegistry();
+  // marriage corners are listed newest-marriage-first (deeper generation / more recently
+  // created first), since a corner created for a woman lower in the tree was very likely
+  // married more recently than one created for a woman higher up
+  const corners = registry.filter(r=>r.type==='marriage-corner').sort((a,b)=>(b.sortKey||0)-(a.sortKey||0));
+  const others = registry.filter(r=>r.type!=='marriage-corner');
+  const list = document.getElementById('tree-switcher-list');
+  const items = [
+    {id:'main', label:'🌳 شجرة العائلة (الرئيسية)', pinned:true},
+    ...corners.map(r=>({id:r.id, label:'🧭 '+r.label})),
+    ...others.map(r=>({id:r.id, label:'📄 '+r.label})),
+  ];
+  list.innerHTML = items.map(it=>`
+    <div style="display:flex;align-items:stretch;gap:4px">
+      <button class="tb-btn" style="flex:1;${it.id===currentTreeId?'background:var(--gold-soft)':''}" data-switch-tree="${it.id}">${it.label}</button>
+      ${it.pinned? '' : `
+        <button class="tb-btn" title="مشاركة هذه الصفحة" style="padding:0 10px" data-share-tree="${it.id}">🔗</button>
+        <button class="tb-btn danger" title="إلغاء هذه الصفحة نهائيًا" style="padding:0 10px" data-delete-tree="${it.id}">✕</button>`}
+    </div>`).join('');
+  list.querySelectorAll('[data-switch-tree]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      document.getElementById('tree-switcher-menu').style.display='none';
+      await switchToTree(btn.getAttribute('data-switch-tree'));
+    });
+  });
+  list.querySelectorAll('[data-share-tree]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); shareOtherTree(btn.getAttribute('data-share-tree')); });
+  });
+  list.querySelectorAll('[data-delete-tree]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteOtherTree(btn.getAttribute('data-delete-tree')); });
+  });
+}
+function deleteOtherTree(treeId){
+  const registry = loadRegistry();
+  const entry = registry.find(r=>r.id===treeId);
+  if(!entry) return;
+  if(!confirm(`هيتم إلغاء صفحة "${entry.label}" نهائيًا مع كل بياناتها. الإجراء ده مش قابل للتراجع. متأكد؟`)) return;
+  saveRegistry(registry.filter(r=>r.id!==treeId));
+  try{ localStorage.removeItem(storageKeyFor(treeId)); }catch(e){}
+  // clear the back-link on whichever person (in the tree currently open) points to this page
+  Object.values(state.people).forEach(p=>{ if(p.linked_tree_id===treeId) p.linked_tree_id=null; });
+  saveData();
+  if(currentTreeId===treeId) switchToTree('main');
+  else { refreshTreeSwitcherMenu(); render(); }
+  toast('تم إلغاء الصفحة');
+}
+function shareOtherTree(treeId){
+  let raw;
+  try{ raw = localStorage.getItem(storageKeyFor(treeId)); }catch(e){}
+  if(!raw){ toast('الصفحة دي فاضية لسه'); return; }
+  let data;
+  try{ data = JSON.parse(raw); }catch(e){ toast('تعذّر قراءة الصفحة'); return; }
+  const masked = JSON.parse(JSON.stringify(data));
+  Object.values(masked.people||{}).forEach(p=>{
+    p.whatsapp=''; p.phone1=''; p.phone2=''; p.addr1=''; p.addr2=''; p.email='';
+    p.birth_date=''; p.death_date=''; p.job=''; p.events=[]; p.contact_enabled=false; p.contact_via=null;
+    p.external_children=[]; p.photo=null; p.care_status='';
+  });
+  masked.log = []; if(masked.settings) masked.settings.pin = null;
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(masked))));
+  const link = location.origin+location.pathname+'#view='+encoded;
+  document.getElementById('share-modal-title').textContent = '🔍 رابط للمشاهدة فقط';
+  document.getElementById('share-modal-hint').textContent = 'رابط للقراءة فقط لهذه الصفحة تحديدًا -- لا تظهر فيه بيانات البطاقة الشخصية.';
+  document.getElementById('share-link-general').value = link;
+  document.getElementById('tree-switcher-menu').style.display='none';
+  openModal('modal-share');
+}
+async function openOrCreateSubtree(pid, type){
+  type = type || 'subtree';
+  const p = state.people[pid];
+  if(!p) return;
+  if(p.linked_tree_id){
+    await switchToTree(p.linked_tree_id);
+    toast(type==='marriage-corner' ? 'اتفتح ركن القرابة والمصاهرة' : 'اتفتحت الشجرة المستقلة');
+    return;
+  }
+  const isCorner = type==='marriage-corner';
+  const msg = isCorner
+    ? `هيتعمل "ركن القرابة والمصاهرة" الخاص بـ"${fullName(p)}" كصفحة مستقلة تمامًا. هنا بس (بخلاف الشجرة الرئيسية) يُسمح بإضافة أبوها وأمها وإخوتها. تكمل؟`
+    : `هيتعمل شجرة مستقلة تمامًا باسم "${fullName(p)}" -- منفصلة تمامًا عن الشجرة الرئيسية ببياناتها الخاصة، ومحفوظة بشكل مستقل، ودمج مستقل بعيدًا عن الشجرة الأولى. تكمل؟`;
+  if(!confirm(msg)) return;
+  const newTreeId = uid('tree');
+  // capture her position in the CURRENT (main) tree before switching away, to sort corners by recency later
+  const sortKey = (computeGenerations()[pid]||0)*1e13 + (p._order||0);
+  const registry = loadRegistry();
+  registry.push({id:newTreeId, label: fullName(p) + (isCorner? ' (ركن قرابة ومصاهرة)':' (شجرة مستقلة)'), type, sortKey});
+  saveRegistry(registry);
+  pushUndo();
+  p.linked_tree_id = newTreeId;
+  await saveData(); // persist the link on the main tree before switching away from it
+  await switchToTree(newTreeId);
+  const seedId = uid('p');
+  state.people[seedId] = { id:seedId, first_name:p.first_name, last_name:p.last_name||'', gender:p.gender,
+    deceased:p.deceased||false, death_confirmed:false, father_id:null, mother_id:null, whatsapp:'',
+    is_unknown:false, married_in:false, confirmed_as_child:false, alias_of:null, _order:Date.now(), events:[] };
+  if(isCorner) state.corner_type = 'marriage-corner'; // used to gate the name-completeness nudge and share restrictions
+  await saveData(); render(); centerTree();
+  toast(isCorner ? 'اتعمل ركن القرابة والمصاهرة -- ابدأ بإضافة أبوها وأمها' : 'اتعملت الشجرة المستقلة -- ابدأ تبنيها زي أي شجرة عادية');
+}
+function pushUndo(){
+  undoStack.push(JSON.stringify(state));
+  if(undoStack.length>20) undoStack.shift();
+  redoStack = []; // a new action invalidates any redo history
+}
+function doUndo(){
+  // treat clearing an active highlight/glow as its own undo step, so pressing undo right after
+  // toggling one of these always does something visible, even with no data change involved
+  if(highlightedLineageId || highlightedDescendantsId){
+    highlightedLineageId = null; highlightedDescendantsId = null;
+    applyLineageHighlight(); applyDescendantHighlight();
+    toast('تم التراجع (إلغاء التظليل)');
+    return;
+  }
+  if(!undoStack.length){ toast('لا يوجد ما يمكن التراجع عنه'); return; }
+  redoStack.push(JSON.stringify(state));
+  if(redoStack.length>20) redoStack.shift();
+  state = JSON.parse(undoStack.pop());
+  saveData(); render(); toast('تم التراجع');
+}
+function doRedo(){
+  if(!redoStack.length){ toast('لا يوجد ما يمكن إعادته'); return; }
+  undoStack.push(JSON.stringify(state));
+  state = JSON.parse(redoStack.pop());
+  saveData(); render(); toast('تم الإعادة');
+}
+function logAction(text){
+  if(!state.log) state.log = [];
+  state.log.push({ ts: new Date().toISOString(), text });
+  if(state.log.length>300) state.log.shift();
+}
+
+/* ============================= HELPERS ============================= */
+function fullName(p){
+  if(!p) return 'مجهول';
+  if(p.first_name && p.last_name) return p.first_name+' '+p.last_name;
+  // No explicit surname given: auto-compose "first-name + father's-first-name" from the tree
+  // itself, so two people sharing a first name (common in real families) stay distinguishable
+  // wherever their name is shown -- this works regardless of which direction the tree was built
+  // (child added first then father, or father then child), since it only depends on father_id
+  // being linked, not on entry order. The topmost ancestor (no father in the tree) just keeps
+  // their single name.
+  let name = null;
+  if(p.first_name){
+    const father = p.father_id ? state.people[p.father_id] : null;
+    name = (father && father.first_name) ? p.first_name + ' ' + father.first_name : p.first_name;
+  } else {
+    name = p.last_name || (p.gender==='f' ? 'مجهولة' : 'مجهول');
+  }
+  // In a marriage/kinship-corner page there's no shared blood-ancestor chain to lean on for
+  // disambiguation the way the main tree has, so a bare one-word name is nudged visually to
+  // remind the person to fill in a fuller (at least triple) name.
+  if(state.corner_type==='marriage-corner' && p.first_name && !p.last_name && !name.includes(' ')){
+    name += p.gender==='f' ? ' مجهولة مجهولة' : ' مجهول مجهول';
+  }
+  return name;
+}
+// Optional scoping filter: when set, personList() only returns this subset -- used to render
+// the "kinship & in-laws corner" mini-tree without needing a whole separate layout engine.
+let activeFilterIds = null;
+function personList(){
+  const all = Object.values(state.people);
+  return activeFilterIds ? all.filter(p=>activeFilterIds.has(p.id)) : all;
+}
+function marriageList(){ return Object.values(state.marriages); }
+function marriagesOf(pid){ return marriageList().filter(m=>m.husband_id===pid||m.wife_id===pid); }
+function childrenOf(pid){ return personList().filter(p=>p.father_id===pid||p.mother_id===pid); }
+function spouseOptions(pid){
+  const p = state.people[pid]; if(!p) return [];
+  return marriagesOf(pid).map(m=> p.gender==='m' ? m.wife_id : m.husband_id).map(id=>state.people[id]).filter(Boolean);
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function closeAllModals(){ document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show')); }
+function openModal(id){ closeAllModals(); document.getElementById(id).classList.add('show'); }
+
+/* ============================= STATS ============================= */
+function computeStats(){
+  const people = personList().filter(p=>!p.alias_of);
+  const marriages = marriageList();
+  const total = people.length;
+  // blood-family gender counts exclude in-law spouses (married_in) -- they're not members of
+  // this family by blood, just married into it, so they shouldn't count in the family's own
+  // male/female breakdown
+  const male = people.filter(p=>p.gender==='m'&&!p.is_unknown&&!p.married_in).length;
+  const female = people.filter(p=>p.gender==='f'&&!p.is_unknown&&!p.married_in).length;
+  const inlaws = people.filter(p=>p.married_in).length;
+  const deceased = people.filter(p=>p.deceased).length;
+  let confirmedRel=0, totalRel=0;
+  people.forEach(p=>{
+    if(p.father_id){ totalRel++; if(p.confirmed_as_child) confirmedRel++; }
+    if(p.mother_id){ totalRel++; if(p.confirmed_as_child) confirmedRel++; }
+  });
+  marriages.forEach(m=>{ totalRel++; if(m.confirmed) confirmedRel++; });
+  const pct = totalRel? Math.round(confirmedRel/totalRel*100) : 0;
+  return {total, male, female, inlaws, deceased, marriages: marriages.length, children: people.filter(p=>p.father_id||p.mother_id).length, pct, disputes: mergeState? mergeState.diffs.filter(d=>d.status==='conflict').length : 0};
+}
+function refreshStatBar(){
+  const s = computeStats();
+  document.getElementById('doc-stat').textContent = `الأشخاص: ${s.total} · التوثيق: ${s.pct}%` + (s.disputes? ` · نقاط خلاف: ${s.disputes}`:'');
+}
+
+/* ============================= LAYOUT ============================= */
+// Correct generation assignment: father/mother -> child is always +1 (child drawn BELOW parent,
+// larger y). Spouses are always same generation. Uses constraint propagation (BFS with relative
+// offsets) per connected family component, then normalizes each component so its topmost
+// ancestor(s) sit at generation 0 -- this stays correct even if a parent is added *after* their
+// child/child's-spouse already exists in the tree.
+function computeGenerations(){
+  const gen = {};
+  const people = personList().filter(p=>!p.alias_of);
+  const byId = state.people;
+  const adj = {};
+  function addEdge(a,b,delta){
+    if(!byId[a]||!byId[b]) return;
+    if(activeFilterIds && (!activeFilterIds.has(a) || !activeFilterIds.has(b))) return;
+    (adj[a]=adj[a]||[]).push([b,delta]);
+    (adj[b]=adj[b]||[]).push([a,-delta]);
+  }
+  people.forEach(p=>{
+    if(p.father_id) addEdge(p.father_id, p.id, 1);
+    if(p.mother_id) addEdge(p.mother_id, p.id, 1);
+  });
+  marriageList().forEach(m=> addEdge(m.husband_id, m.wife_id, 0));
+
+  const visitedGlobal = new Set();
+  people.forEach(start=>{
+    if(visitedGlobal.has(start.id)) return;
+    const compNodes = [start.id];
+    const local = {}; local[start.id]=0;
+    visitedGlobal.add(start.id);
+    const queue=[start.id];
+    while(queue.length){
+      const cur = queue.shift();
+      (adj[cur]||[]).forEach(([nb,delta])=>{
+        if(!visitedGlobal.has(nb)){
+          local[nb] = local[cur]+delta;
+          visitedGlobal.add(nb); compNodes.push(nb); queue.push(nb);
+        }
+      });
+    }
+    const min = Math.min(...compNodes.map(id=>local[id]));
+    compNodes.forEach(id=> gen[id] = local[id]-min);
+  });
+  return gen;
+}
+
+// Build family units per generation: a unit = husband+wife(s) or single person, to be laid out left-to-right.
+// Two-pass "tidy tree" approach: first compute how much horizontal width every subtree NEEDS
+// (own row width vs combined children width, whichever is larger), then place everything
+// top-down inside its reserved slot. Reserving width up front — instead of positioning while
+// walking down and only fixing overlaps afterwards — is what prevents sibling branches (and
+// their descendants) from ever overlapping or crossing each other.
+function layoutTree(){
+  const gens = computeGenerations();
+  const people = personList().filter(p=>!p.alias_of);
+  const positions = {};
+  const visited = new Set();
+
+  function childrenOfPerson(pid){ return people.filter(p=>p.father_id===pid || p.mother_id===pid); }
+
+  // Which "other parent" produced this child, relative to the unit's own blood person?
+  // Children sharing the same other-parent are full siblings (small gap between them);
+  // children with a different other-parent are half-siblings from a different marriage
+  // (or from an unspecified/unknown parent) and always get the bigger FAMILY_GAP instead.
+  function otherParentKey(child, pid, spouseIdSet){
+    if(child.father_id && child.father_id!==pid) return child.father_id;
+    if(child.mother_id && child.mother_id!==pid) return child.mother_id;
+    return 'none:'+pid;
+  }
+
+  function computeUnit(pid){
+    if(visited.has(pid)) return null;
+    visited.add(pid);
+    const p = state.people[pid];
+    const spouseIds = (p.gender==='m'
+      ? marriagesOf(pid).map(m=>m.wife_id)
+      : marriagesOf(pid).map(m=>m.husband_id)
+    ).filter(id=>state.people[id] && !visited.has(id));
+    spouseIds.forEach(id=>visited.add(id));
+    const spouseIdSet = new Set(spouseIds);
+
+    let kids = p.collapsed ? [] : childrenOfPerson(pid);
+    if(!p.collapsed){
+      spouseIds.forEach(sid=>{ kids = kids.concat(childrenOfPerson(sid).filter(c=>!kids.includes(c))); });
+    }
+    kids = Array.from(new Set(kids)).filter(c=>!visited.has(c.id));
+
+    // group by other-parent so full siblings cluster together, ordered by earliest child in each group
+    const groups = {};
+    kids.forEach(c=>{
+      const k = otherParentKey(c, pid, spouseIdSet);
+      (groups[k]=groups[k]||[]).push(c);
+    });
+    const orderedGroupKeys = Object.keys(groups).sort((ka,kb)=>{
+      const oa = Math.min(...groups[ka].map(c=>c._order||0));
+      const ob = Math.min(...groups[kb].map(c=>c._order||0));
+      return oa-ob;
+    });
+
+    const childUnits = [];
+    const gapBefore = []; // gap to place BEFORE this child unit (relative to the previous one)
+    orderedGroupKeys.forEach((k,gi)=>{
+      const groupKids = groups[k].sort((a,b)=>(a._order||0)-(b._order||0));
+      groupKids.forEach((c,ci)=>{
+        const u = computeUnit(c.id);
+        if(!u) return;
+        childUnits.push(u);
+        if(childUnits.length>1) gapBefore.push(ci===0 ? FAMILY_GAP : SIB_GAP);
+      });
+    });
+
+    const rowCount = 1 + spouseIds.length;
+    const ownWidth = rowCount*NODE_W + (rowCount-1)*SPOUSE_GAP;
+    const totalGaps = gapBefore.reduce((s,g)=>s+g,0);
+    const childrenWidth = childUnits.length
+      ? childUnits.reduce((s,u)=>s+u.width,0) + totalGaps
+      : 0;
+    const width = Math.max(ownWidth, childrenWidth);
+    return { pid, spouseIds, ownWidth, childrenWidth, width, childUnits, gapBefore };
+  }
+
+  function placeUnit(unit, start){
+    const center = start + unit.width/2;
+    const rowStart = center - unit.ownWidth/2;
+    const order = [unit.pid, ...unit.spouseIds];
+    order.forEach((id,i)=>{
+      const person = state.people[id];
+      const g = gens[id]!==undefined? gens[id] : 0;
+      let y = g*GEN_H + NODE_H/2 + 40;
+      // spouse who married INTO the family (or an auto-created "unknown" spouse) sits one
+      // small step lower than the blood-line person -- never affects generation/spacing math,
+      // purely a pixel-level visual cue drawn via a slanted marriage line.
+      if(i>0 && (person.married_in || person.is_unknown)) y += INLAW_STEP;
+      positions[id] = { x: rowStart + i*(NODE_W+SPOUSE_GAP) + NODE_W/2, y };
+    });
+    if(unit.childUnits.length){
+      let cx = center - unit.childrenWidth/2;
+      unit.childUnits.forEach((cu,i)=>{
+        if(i>0) cx += unit.gapBefore[i-1];
+        placeUnit(cu, cx);
+        cx += cu.width;
+      });
+    }
+  }
+
+  // roots: the topmost generation of each family branch (gen===0) -- computed from the
+  // father/mother constraint graph, so a parent added later still ends up above their
+  // existing children/spouses instead of sharing their row.
+  const roots = people.filter(p=>(gens[p.id]||0)===0);
+  roots.sort((a,b)=> (a._order||0)-(b._order||0));
+  const units = [];
+  roots.forEach(r=>{ const u = computeUnit(r.id); if(u) units.push(u); });
+
+  let cursor = 40;
+  units.forEach(u=>{ placeUnit(u, cursor); cursor += u.width + FAMILY_GAP; });
+
+  // record which top-level branch every person belongs to, for the optional branch-coloring view
+  lastBranchOf = {};
+  function tagBranch(unit, idx){
+    lastBranchOf[unit.pid] = idx;
+    unit.spouseIds.forEach(id=>lastBranchOf[id]=idx);
+    unit.childUnits.forEach(cu=>tagBranch(cu, idx));
+  }
+  units.forEach((u,idx)=>tagBranch(u, idx));
+
+  // any leftover unplaced (orphans due to reference cycles) -- place them in a row
+  people.forEach(p=>{
+    if(!positions[p.id]){
+      positions[p.id] = { x: cursor + NODE_W/2, y: (gens[p.id]||0)*GEN_H + NODE_H/2 + 40 };
+      cursor += NODE_W+SIB_GAP;
+    }
+  });
+  // aliases positioned near their target with offset, stacked
+  const aliasCounts = {};
+  personList().filter(p=>p.alias_of).forEach(p=>{
+    const base = positions[p.alias_of];
+    const n = (aliasCounts[p.alias_of]=(aliasCounts[p.alias_of]||0)+1);
+    if(base){
+      positions[p.id] = { x: base.x + 90 + n*20, y: base.y + 70*n, isAlias:true };
+    } else {
+      positions[p.id] = { x: cursor, y: 40 };
+      cursor += 100;
+    }
+  });
+  return positions;
+}
+
+/* ============================= RENDER ============================= */
+const svg = document.getElementById('tree-svg');
+const wrap = document.getElementById('canvas-wrap');
+const NS = 'http://www.w3.org/2000/svg';
+let lastPositions = {};
+let lastBranchOf = {};
+function el(tag, attrs, parent){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+
+function personColor(p){
+  if(p.is_unknown) return {fill:'#DAD3C2', stroke:'var(--grey-deep)'};
+  if(p.gender==='m') return {fill:'#DCEAF3', stroke:'var(--male-deep)', solid:'var(--male)'};
+  return {fill:'#F5DEE2', stroke:'var(--female-deep)', solid:'var(--female)'};
+}
+
+function render(){
+  svg.innerHTML = '';
+  const people = personList();
+  refreshStatBar();
+
+  if(!people.length){
+    const g = el('g',{},svg);
+    el('text',{x:400,y:260,'text-anchor':'middle',class:'empty-hint'},g).textContent = 'الشجرة فارغة — اضغط "➕ إضافة شخص" للبدء';
+    resizeCanvas(1000,600);
+    lastPositions = {};
+    applyCamera();
+    return;
+  }
+
+  const pos = layoutTree();
+  lastPositions = pos;
+  let maxX=0, maxY=0;
+  Object.values(pos).forEach(p=>{ maxX=Math.max(maxX,p.x+150); maxY=Math.max(maxY,p.y+150); });
+  resizeCanvas(Math.max(maxX,1200), Math.max(maxY,700));
+
+  const linksLayer = el('g',{id:'links-layer'},svg);
+  const nodesLayer = el('g',{id:'nodes-layer'},svg);
+
+  if(state.settings && state.settings.branch_colors){
+    const branchLayer = el('g',{id:'branch-colors-layer'},svg);
+    svg.insertBefore(branchLayer, linksLayer);
+    const palette = ['#DCEAF3','#F5DEE2','#E4EAD0','#F1E0C8','#DDE3EE','#EAD9EC','#D8EDE6'];
+    const groups = {};
+    Object.keys(pos).forEach(id=>{
+      const idx = lastBranchOf[id];
+      if(idx===undefined) return;
+      const P = pos[id];
+      if(!groups[idx]) groups[idx] = {minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity};
+      const b = groups[idx];
+      b.minX = Math.min(b.minX, P.x-NODE_W/2); b.maxX = Math.max(b.maxX, P.x+NODE_W/2);
+      b.minY = Math.min(b.minY, P.y-NODE_H/2); b.maxY = Math.max(b.maxY, P.y+NODE_H/2);
+    });
+    Object.keys(groups).forEach(idx=>{
+      const b = groups[idx];
+      const pad = 30;
+      el('rect',{x:b.minX-pad,y:b.minY-pad,width:(b.maxX-b.minX)+pad*2,height:(b.maxY-b.minY)+pad*2,
+        rx:24, fill:palette[idx%palette.length], opacity:0.35},branchLayer);
+    });
+  }
+
+  // marriage lines
+  marriageList().forEach(m=>{
+    const h = pos[m.husband_id], w = pos[m.wife_id];
+    if(!h||!w) return;
+    const x1 = Math.min(h.x,w.x)+NODE_W/2, x2 = Math.max(h.x,w.x)-NODE_W/2;
+    const y1 = h.x<w.x? h.y : w.y, y2 = h.x<w.x? w.y : h.y;
+    const midx = (x1+x2)/2;
+    // a real right-angle "stair step" (horizontal - vertical - horizontal), not a diagonal
+    // ramp: flat at y1 out to the midpoint, one clean vertical drop, flat again at y2.
+    const d = y1===y2 ? `M${x1},${y1} H${x2}` : `M${x1},${y1} H${midx} V${y2} H${x2}`;
+    const line = el('path',{d,class:'link-line hoverable',fill:'none',stroke:m.confirmed? 'var(--gold)':'var(--line)','stroke-width':2.5,'stroke-dasharray': m.confirmed?'0':'6,5'},linksLayer);
+    const circleY = (y1+y2)/2;
+    el('circle',{cx:midx,cy:circleY,r:11,fill:'var(--card-bg)',stroke:'var(--gold)','stroke-width':1.5},linksLayer);
+    el('text',{x:midx,y:circleY+5,'text-anchor':'middle',class:'marriage-plus','font-size':14},linksLayer).textContent='+';
+
+    // children under this marriage
+    const kids = personList().filter(c=> (c.father_id===m.husband_id && c.mother_id===m.wife_id) || (c.father_id===m.wife_id && c.mother_id===m.husband_id));
+    if(kids.length){
+      const kidsWithPos = kids.map(k=>({k,P:pos[k.id]})).filter(o=>o.P);
+      if(kidsWithPos.length){
+        const kidsY = kidsWithPos.map(o=>o.P);
+        const dropY = Math.max(h.y,w.y)+GEN_H/2;
+        el('line',{x1:midx,y1:circleY,x2:midx,y2:dropY,class:'link-line',stroke:'var(--line)','stroke-width':2},linksLayer);
+        // include midx in the bus span too -- otherwise a lone child who has their own spouse
+        // (so their own box isn't centered under the marriage) leaves a visible gap between
+        // the parents' vertical drop and the bus/child connector
+        const minKx = Math.min(midx, ...kidsY.map(k=>k.x)), maxKx = Math.max(midx, ...kidsY.map(k=>k.x));
+        el('line',{x1:minKx,y1:dropY,x2:maxKx,y2:dropY,class:'link-line',stroke:'var(--line)','stroke-width':2},linksLayer);
+        kidsWithPos.forEach(({k,P})=>{
+          if(k.generations_unknown){
+            el('line',{x1:P.x,y1:dropY,x2:P.x,y2:P.y-NODE_H/2,class:'link-line',stroke:'var(--gold)','stroke-width':2.5,'stroke-dasharray':'2,5'},linksLayer);
+            el('text',{x:P.x+12,y:(dropY+P.y-NODE_H/2)/2+4,'font-size':13,fill:'var(--gold)','font-weight':700},linksLayer).textContent='⋯ أجيال غير موثقة';
+          } else {
+            el('line',{x1:P.x,y1:dropY,x2:P.x,y2:P.y-NODE_H/2,class:'link-line',stroke: 'var(--line)','stroke-width':2},linksLayer);
+          }
+        });
+      }
+    }
+  });
+
+  // single-parent children (only father or only mother known, no marriage record) -> simple vertical line
+  people.forEach(p=>{
+    if(p.alias_of) return;
+    const hasMarriageParents = marriageList().some(m=> (m.husband_id===p.father_id&&m.wife_id===p.mother_id)||(m.husband_id===p.mother_id&&m.wife_id===p.father_id));
+    if(hasMarriageParents) return;
+    const parentId = p.father_id || p.mother_id;
+    if(!parentId) return;
+    const pp = pos[parentId], cp = pos[p.id];
+    if(!pp||!cp) return;
+    const confirmed = p.confirmed_as_child;
+    el('path',{d:`M${pp.x},${pp.y} V${pp.y+GEN_H/2} H${cp.x} V${cp.y-NODE_H/2}`,class:'link-line',stroke: confirmed?'var(--gold)':'var(--line)','stroke-width':2,'stroke-dasharray':confirmed?'0':'6,5'},linksLayer);
+  });
+
+  // alias dashed connector to original
+  people.filter(p=>p.alias_of).forEach(p=>{
+    const a = pos[p.id], b = pos[p.alias_of];
+    if(!a||!b) return;
+    el('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'var(--gold)','stroke-width':1.5,'stroke-dasharray':'3,4',opacity:.55},linksLayer);
+  });
+
+  // nodes
+  people.forEach(p=>{
+    const P = pos[p.id]; if(!P) return;
+    const g = el('g',{class:'node-group','data-id':p.id, transform:`translate(${P.x},${P.y})`},nodesLayer);
+    const col = personColor(p);
+    const rect = el('rect',{x:-NODE_W/2,y:-NODE_H/2,width:NODE_W,height:NODE_H,rx:12,class:'node-rect',fill:col.fill,stroke:col.stroke},g);
+    if(p.deceased){
+      el('line',{x1:-NODE_W/2+5,y1:NODE_H/2-5,x2:NODE_W/2-24,y2:-NODE_H/2+5,stroke:col.stroke,'stroke-width': p.death_confirmed?3.5:1.8,'stroke-linecap':'round',opacity:p.death_confirmed?1:.55},g);
+    }
+    const name = fullName(readOnly && p.whatsapp ? {...p} : p);
+    el('text',{x:0,y:-2,'text-anchor':'middle',class:'node-name',fill:'var(--ink)','font-size':13.5},g).textContent = name.length>16? name.slice(0,15)+'…': name;
+    let sub = p.gender==='m'?'ذكر':'أنثى';
+    if(p.is_unknown) sub = p.gender==='f'?'مجهولة':'مجهول';
+    if(p.deceased) sub += ' · متوفى'+(p.death_confirmed?' ✓':'');
+    el('text',{x:0,y:16,'text-anchor':'middle',class:'node-sub',fill:'var(--ink-soft)','font-size':10.5},g).textContent = sub;
+    if(p.alias_of){
+      const pin = el('text',{x:NODE_W/2-10,y:-NODE_H/2+4,class:'pin-badge','font-size':16},g);
+      pin.textContent='📌';
+      pin.addEventListener('click',(e)=>{ e.stopPropagation(); focusOn(p.alias_of); });
+    } else if(personList().some(x=>x.alias_of===p.id)){
+      const pin = el('text',{x:NODE_W/2-10,y:-NODE_H/2+4,class:'pin-badge','font-size':16},g);
+      pin.textContent='📌';
+      pin.addEventListener('click',(e)=>{ e.stopPropagation(); const al=personList().find(x=>x.alias_of===p.id); if(al) focusOn(al.id); });
+    }
+    if(p.events && p.events.length){
+      el('text',{x:-NODE_W/2+12,y:-NODE_H/2+4,'font-size':14},g).textContent='📅';
+    }
+    const hasKids = childrenOf(p.id).length>0;
+    if(hasKids){
+      const tri = el('text',{x:0,y:NODE_H/2+16,'text-anchor':'middle','font-size':13,fill:'var(--ink-soft)',style: readOnly? '' : 'cursor:pointer'},g);
+      tri.textContent = p.collapsed? '▶ إظهار الأبناء' : '▼ طي الأبناء';
+      if(!readOnly){
+        tri.addEventListener('click',(e)=>{ e.stopPropagation(); p.collapsed = !p.collapsed; saveData(); render(); });
+      }
+    }
+    g.addEventListener('click',(e)=>{ e.stopPropagation(); if(readOnly) return; onNodeClick(p.id, e); });
+    g.addEventListener('mouseenter',()=>hoverFamily(p.id,true));
+    g.addEventListener('mouseleave',()=>hoverFamily(p.id,false));
+  });
+
+  applyCamera();
+  if(typeof applyLineageHighlight==='function') applyLineageHighlight();
+  if(typeof applyDescendantHighlight==='function') applyDescendantHighlight();
+}
+
+function hoverFamily(pid, on){
+  const rel = new Set([pid]);
+  const p = state.people[pid];
+  if(p){
+    if(p.father_id) rel.add(p.father_id);
+    if(p.mother_id) rel.add(p.mother_id);
+    marriagesOf(pid).forEach(m=>{ rel.add(m.husband_id); rel.add(m.wife_id); });
+    childrenOf(pid).forEach(c=>rel.add(c.id));
+  }
+  document.querySelectorAll('.node-group').forEach(g=>{
+    const id = g.getAttribute('data-id');
+    g.classList.toggle('dim', on && !rel.has(id));
+  });
+}
+
+function resizeCanvas(w,h){ svg.setAttribute('width',w); svg.setAttribute('height',h); svg.setAttribute('viewBox',`0 0 ${w} ${h}`); }
+
+function focusOn(pid){
+  const g = document.querySelector(`.node-group[data-id="${pid}"]`);
+  if(!g) return;
+  const rect = g.querySelector('rect.node-rect');
+  if(rect){
+    rect.classList.remove('search-highlight');
+    void rect.offsetWidth; // restart animation if triggered again quickly
+    rect.classList.add('search-highlight');
+    setTimeout(()=>{ rect.classList.remove('search-highlight'); }, 2300);
+  }
+  const transform = g.getAttribute('transform');
+  const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(transform);
+  if(m){
+    camera.x = wrap.clientWidth/2 - parseFloat(m[1])*camera.scale;
+    camera.y = wrap.clientHeight/2 - parseFloat(m[2])*camera.scale;
+    applyCamera();
+  }
+}
+
+/* ============================= CAMERA (pan/zoom) ============================= */
+function applyCamera(){
+  svg.style.transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`;
+  svg.style.transformOrigin = '0 0';
+}
+wrap.addEventListener('mousedown', (e)=>{
+  if(e.target.closest('.node-group')) return;
+  isPanning = true; wrap.classList.add('grabbing');
+  panStart = {x:e.clientX,y:e.clientY}; camStart = {x:camera.x,y:camera.y};
+});
+window.addEventListener('mousemove',(e)=>{
+  if(!isPanning) return;
+  camera.x = camStart.x + (e.clientX-panStart.x);
+  camera.y = camStart.y + (e.clientY-panStart.y);
+  applyCamera();
+});
+window.addEventListener('mouseup',()=>{ isPanning=false; wrap.classList.remove('grabbing'); });
+wrap.addEventListener('wheel',(e)=>{
+  e.preventDefault();
+  const delta = e.deltaY>0? -0.08:0.08;
+  camera.scale = Math.min(2.2, Math.max(0.25, camera.scale+delta));
+  applyCamera();
+},{passive:false});
+document.getElementById('zoom-in').onclick=()=>{camera.scale=Math.min(2.2,camera.scale+0.15);applyCamera();};
+document.getElementById('zoom-out').onclick=()=>{camera.scale=Math.max(0.25,camera.scale-0.15);applyCamera();};
+document.getElementById('zoom-reset').onclick=()=>{camera={x:40,y:20,scale:1};applyCamera();};
+
+/* ============================= TOUCH: PAN (1 finger) + PINCH ZOOM (2 fingers) ============================= */
+let touchMode = null; // 'pan' | 'pinch'
+let touchPanStart = {x:0,y:0}, touchCamStart = {x:0,y:0};
+let pinchStartDist = 0, pinchStartScale = 1, pinchMidpoint = {x:0,y:0};
+function touchDist(t0,t1){ return Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY); }
+wrap.addEventListener('touchstart',(e)=>{
+  if(e.target.closest('.node-group') || e.target.closest('#radial-menu')) return;
+  if(e.touches.length===1){
+    touchMode='pan';
+    touchPanStart = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+    touchCamStart = {x:camera.x, y:camera.y};
+  } else if(e.touches.length===2){
+    touchMode='pinch';
+    pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+    pinchStartScale = camera.scale;
+  }
+},{passive:true});
+wrap.addEventListener('touchmove',(e)=>{
+  if(touchMode==='pan' && e.touches.length===1){
+    e.preventDefault();
+    camera.x = touchCamStart.x + (e.touches[0].clientX-touchPanStart.x);
+    camera.y = touchCamStart.y + (e.touches[0].clientY-touchPanStart.y);
+    applyCamera();
+  } else if(touchMode==='pinch' && e.touches.length===2){
+    e.preventDefault();
+    const dist = touchDist(e.touches[0], e.touches[1]);
+    const ratio = dist / (pinchStartDist||1);
+    camera.scale = Math.min(2.2, Math.max(0.25, pinchStartScale*ratio));
+    applyCamera();
+  }
+},{passive:false});
+wrap.addEventListener('touchend',()=>{ touchMode=null; });
+wrap.addEventListener('touchcancel',()=>{ touchMode=null; });
+
+function centerTree(){
+  const ids = Object.keys(lastPositions);
+  if(!ids.length){ camera={x:40,y:20,scale:1}; applyCamera(); return; }
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  ids.forEach(id=>{
+    const p = lastPositions[id];
+    minX=Math.min(minX,p.x-NODE_W/2); maxX=Math.max(maxX,p.x+NODE_W/2);
+    minY=Math.min(minY,p.y-NODE_H/2); maxY=Math.max(maxY,p.y+NODE_H/2);
+  });
+  const pad = 60;
+  const w = (maxX-minX)+pad*2, h = (maxY-minY)+pad*2;
+  const scale = Math.min(wrap.clientWidth/w, wrap.clientHeight/h, 1.15);
+  camera.scale = Math.min(2.2, Math.max(0.25, scale));
+  camera.x = wrap.clientWidth/2 - ((minX+maxX)/2)*camera.scale;
+  camera.y = wrap.clientHeight/2 - ((minY+maxY)/2)*camera.scale;
+  applyCamera();
+}
+document.getElementById('btn-center').addEventListener('click', centerTree);
+
+wrap.addEventListener('click',(e)=>{
+  if(e.target===wrap || e.target.id==='tree-svg'){
+    closeRadialMenu();
+    selectedId=null; updateToolbarButtons();
+  }
+});
+
+/* ============================= RADIAL MENU ============================= */
+const radialMenu = document.getElementById('radial-menu');
+function onNodeClick(pid, evt){
+  selectedId = pid; updateToolbarButtons();
+  const p = state.people[pid];
+  if(p.alias_of){ // alias node: minimal menu
+    openRadialFor(pid, evt, true);
+    return;
+  }
+  openRadialFor(pid, evt, false);
+}
+function openRadialFor(pid, evt, isAlias){
+  activeMenuPersonId = pid;
+  const p = state.people[pid];
+  radialMenu.innerHTML = '';
+  const cap = document.createElement('div'); cap.className='rm-caption'; cap.textContent = fullName(p); radialMenu.appendChild(cap);
+  if(isAlias){
+    const b = document.createElement('button'); b.textContent='📌 الذهاب إلى الأصل'; b.onclick=()=>{ closeRadialMenu(); focusOn(p.alias_of); };
+    radialMenu.appendChild(b);
+    const del = document.createElement('button'); del.className='rm-del'; del.textContent='🗑️ حذف هذا التكرار';
+    del.onclick=()=>{ closeRadialMenu(); deletePerson(pid); };
+    radialMenu.appendChild(del);
+  } else {
+    const del = document.createElement('button'); del.className='rm-del'; del.textContent='🗑️ حذف'; del.onclick=()=>{ closeRadialMenu(); deletePerson(pid); };
+    const edit = document.createElement('button'); edit.className='rm-edit'; edit.textContent='✏️ تعديل'; edit.onclick=()=>{ closeRadialMenu(); openEditPerson(pid); };
+    const card = document.createElement('button'); card.textContent='ℹ️ البطاقة والأحداث'; card.onclick=()=>{ closeRadialMenu(); openPersonCard(pid); };
+    const add = document.createElement('button'); add.className='rm-add'; add.textContent='📌 إضافة شخص ذو علاقة'; add.onclick=()=>{ closeRadialMenu(); openAddRelation(pid); };
+    const share = document.createElement('button'); share.className='rm-share'; share.textContent='🔗 مشاركة لتأكيد العلاقة'; share.onclick=()=>{ closeRadialMenu(); openConfirmShare(pid); };
+    const lineage = document.createElement('button'); lineage.textContent = highlightedLineageId===pid ? '✖️ إلغاء تظليل مسار النسب' : '🧬 تظليل مسار النسب'; lineage.onclick=()=>{ closeRadialMenu(); toggleLineageHighlight(pid); };
+    const descend = document.createElement('button'); descend.textContent = highlightedDescendantsId===pid ? '✖️ إلغاء تلوين النسل' : '🎨 تلوين نسل هذا الشخص'; descend.onclick=()=>{ closeRadialMenu(); toggleDescendantHighlight(pid); };
+    const buttons = [del,edit,card,add,share,lineage,descend];
+    if(currentTreeId==='main'){
+      const p = state.people[pid];
+      // marriage/kinship corner: only for a MARRIED female, seeded as her own independent
+      // page where (unlike the main tree's nasab rule) she's free to add her own father,
+      // mother, siblings, her own children, and her siblings' children -- her side of the
+      // family, kept apart from the main tree.
+      if(p.gender==='f' && marriagesOf(pid).length>0){
+        const corner = document.createElement('button');
+        corner.textContent = p.linked_tree_id ? '🧭 فتح ركن القرابة والمصاهرة الخاص بها' : '🧭 إنشاء ركن القرابة والمصاهرة لها';
+        corner.onclick=()=>{ closeRadialMenu(); openOrCreateSubtree(pid, 'marriage-corner'); };
+        buttons.push(corner);
+      }
+    }
+    buttons.forEach(b=>radialMenu.appendChild(b));
+  }
+  radialMenu.style.display='flex';
+  radialMenu.style.left = '0px'; radialMenu.style.top = '0px'; // reset before measuring
+  const menuW = radialMenu.offsetWidth, menuH = radialMenu.offsetHeight;
+  const rect = wrap.getBoundingClientRect();
+  let left = evt.clientX - rect.left + 14, top = evt.clientY - rect.top;
+  // clamp so the whole menu always stays fully visible inside the viewport, flipping to the
+  // other side of the click point when it would otherwise overflow the bottom/right edge
+  if(evt.clientX + 14 + menuW > window.innerWidth) left = evt.clientX - rect.left - menuW - 14;
+  if(evt.clientY + menuH > window.innerHeight) top = evt.clientY - rect.top - menuH;
+  left = Math.max(4, left); top = Math.max(4, top);
+  radialMenu.style.left = left+'px'; radialMenu.style.top = top+'px';
+}
+function closeRadialMenu(){ radialMenu.style.display='none'; activeMenuPersonId=null; }
+document.addEventListener('click',(e)=>{ if(!radialMenu.contains(e.target) && !e.target.closest('.node-group')) closeRadialMenu(); });
+
+function updateToolbarButtons(){
+  document.getElementById('btn-edit-toolbar').disabled = !selectedId;
+  document.getElementById('btn-del-toolbar').disabled = !selectedId;
+}
+
+/* ============================= ADD / EDIT PERSON ============================= */
+function refreshAliasOptions(){
+  const sel = document.getElementById('f-alias'); sel.innerHTML='<option value="">-- شخص جديد تماماً --</option>';
+  personList().filter(p=>!p.alias_of).forEach(p=>{
+    const o = document.createElement('option'); o.value=p.id; o.textContent=fullName(p); sel.appendChild(o);
+  });
+}
+function refreshContactViaOptions(excludeId){
+  const sel = document.getElementById('f-contact-via'); sel.innerHTML='<option value="">-- بدون --</option>';
+  personList().filter(p=>!p.alias_of && p.id!==excludeId).forEach(p=>{
+    const o = document.createElement('option'); o.value=p.id; o.textContent=fullName(p); sel.appendChild(o);
+  });
+}
+function refreshParentOptions(pid){
+  // exclude the person themself and all of their own descendants, so you can't accidentally
+  // make someone their own ancestor
+  const excluded = collectSubtreeIds(pid);
+  const candidates = personList().filter(p=>!p.alias_of && !excluded.has(p.id));
+  ['f-current-father','f-current-mother'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">-- بدون --</option>' +
+      candidates.map(p=>`<option value="${p.id}">${fullName(p)}</option>`).join('');
+  });
+}
+/* ============================= MORE MENU (mobile-friendly toolbar) ============================= */
+const moreMenu = document.getElementById('tb-more-menu');
+const moreRest = document.getElementById('tb-more-rest');
+document.getElementById('btn-more').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  moreMenu.style.display = moreMenu.style.display==='flex' ? 'none' : 'flex';
+});
+document.getElementById('btn-more-expand').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  moreRest.style.display = moreRest.style.display==='flex' ? 'none' : 'flex';
+});
+moreMenu.querySelectorAll('button').forEach(b=>{
+  if(b.id==='btn-more-expand') return;
+  b.addEventListener('click',()=>{ moreMenu.style.display='none'; moreRest.style.display='none'; });
+});
+document.addEventListener('click',(e)=>{
+  if(moreMenu.style.display==='flex' && !e.target.closest('#tb-more-menu') && e.target.id!=='btn-more'){
+    moreMenu.style.display='none'; moreRest.style.display='none';
+  }
+});
+
+/* ============================= TREE SWITCHER MENU ============================= */
+const treeSwitcherMenu = document.getElementById('tree-switcher-menu');
+document.getElementById('btn-tree-switcher').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  if(treeSwitcherMenu.style.display!=='flex') refreshTreeSwitcherMenu();
+  treeSwitcherMenu.style.display = treeSwitcherMenu.style.display==='flex' ? 'none' : 'flex';
+});
+document.addEventListener('click',(e)=>{
+  if(treeSwitcherMenu.style.display==='flex' && !e.target.closest('#tree-switcher-menu') && e.target.id!=='btn-tree-switcher'){
+    treeSwitcherMenu.style.display='none';
+  }
+});
+document.getElementById('subtree-back').addEventListener('click', async ()=>{ await switchToTree('main'); });
+
+
+document.getElementById('btn-add-root').addEventListener('click',()=>{
+  editingPersonId=null; pendingRelation=null;
+  document.getElementById('person-modal-title').textContent='إضافة شخص';
+  document.getElementById('add-person-tip').style.display = personList().filter(p=>!p.alias_of).length===0 ? '' : 'none';
+  document.getElementById('f-first').value=''; document.getElementById('f-last').value='';
+  document.querySelector('input[name=f-gender][value=m]').checked=true;
+  document.querySelector('input[name=f-alive][value=alive]').checked=true;
+  document.getElementById('f-deathconf').checked=false;
+  document.getElementById('f-care-status').value='';
+  document.getElementById('f-deathconf-wrap').style.display='none';
+  document.getElementById('f-whatsapp').value='';
+  document.getElementById('f-contact-enabled').checked=false;
+  refreshContactViaOptions(null);
+  document.getElementById('f-contact-via').value='';
+  ['f-phone1','f-phone2','f-addr1','f-addr2','f-email','f-birthdate','f-deathdate','f-job'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-photo').value=''; pendingPhotoData=null;
+  document.getElementById('f-photo-preview').style.display='none';
+  document.getElementById('f-alias-wrap').style.display='';
+  document.getElementById('f-parents-wrap').style.display='none';
+  refreshAliasOptions();
+  document.getElementById('f-alias').value='';
+  openModal('modal-person');
+});
+document.getElementById('btn-edit-toolbar').addEventListener('click',()=>{ if(selectedId) openEditPerson(selectedId); });
+document.getElementById('btn-del-toolbar').addEventListener('click',()=>{ if(selectedId) deletePerson(selectedId); });
+
+let pendingPhotoData = null;
+document.getElementById('f-photo').addEventListener('change',(e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    pendingPhotoData = reader.result;
+    const prev = document.getElementById('f-photo-preview');
+    prev.src = pendingPhotoData; prev.style.display='inline-block';
+  };
+  reader.readAsDataURL(file);
+});
+
+function openEditPerson(pid){
+  const p = state.people[pid]; if(!p) return;
+  editingPersonId = pid; pendingRelation=null;
+  document.getElementById('person-modal-title').textContent='تعديل بيانات شخص';
+  document.getElementById('f-first').value=p.first_name||'';
+  document.getElementById('f-last').value=p.last_name||'';
+  document.querySelector(`input[name=f-gender][value=${p.gender}]`).checked=true;
+  document.querySelector(`input[name=f-alive][value=${p.deceased?'dead':'alive'}]`).checked=true;
+  document.getElementById('f-deathconf-wrap').style.display = p.deceased? '':'none';
+  document.getElementById('f-deathconf').checked=!!p.death_confirmed;
+  document.getElementById('f-care-status').value=p.care_status||'';
+  document.getElementById('f-whatsapp').value=p.whatsapp||'';
+  document.getElementById('f-contact-enabled').checked=!!p.contact_enabled;
+  refreshContactViaOptions(pid);
+  document.getElementById('f-contact-via').value=p.contact_via||'';
+  document.getElementById('f-phone1').value=p.phone1||'';
+  document.getElementById('f-phone2').value=p.phone2||'';
+  document.getElementById('f-addr1').value=p.addr1||'';
+  document.getElementById('f-addr2').value=p.addr2||'';
+  document.getElementById('f-email').value=p.email||'';
+  document.getElementById('f-birthdate').value=p.birth_date||'';
+  document.getElementById('f-deathdate').value=p.death_date||'';
+  document.getElementById('f-job').value=p.job||'';
+  document.getElementById('f-photo').value=''; pendingPhotoData=p.photo||null;
+  const prev = document.getElementById('f-photo-preview');
+  if(p.photo){ prev.src=p.photo; prev.style.display='inline-block'; } else { prev.style.display='none'; }
+  document.getElementById('f-alias-wrap').style.display='none';
+  document.getElementById('f-parents-wrap').style.display='';
+  refreshParentOptions(pid);
+  document.getElementById('f-current-father').value = p.father_id||'';
+  document.getElementById('f-current-mother').value = p.mother_id||'';
+  openModal('modal-person');
+}
+document.querySelectorAll('input[name=f-alive]').forEach(r=>r.addEventListener('change',(e)=>{
+  document.getElementById('f-deathconf-wrap').style.display = e.target.value==='dead'? '':'none';
+}));
+
+document.getElementById('btn-save-person').addEventListener('click',()=>{
+  const first = document.getElementById('f-first').value.trim();
+  if(!first){ toast('الاسم مطلوب'); return; }
+  const last = document.getElementById('f-last').value.trim();
+  const gender = document.querySelector('input[name=f-gender]:checked').value;
+  const dead = document.querySelector('input[name=f-alive]:checked').value==='dead';
+  const deathConf = document.getElementById('f-deathconf').checked;
+  const whatsapp = document.getElementById('f-whatsapp').value.trim();
+  const contactEnabled = document.getElementById('f-contact-enabled').checked;
+  const contactVia = document.getElementById('f-contact-via').value;
+  const aliasOf = document.getElementById('f-alias')? document.getElementById('f-alias').value : '';
+  const cardFields = {
+    phone1: document.getElementById('f-phone1').value.trim(),
+    phone2: document.getElementById('f-phone2').value.trim(),
+    addr1: document.getElementById('f-addr1').value.trim(),
+    addr2: document.getElementById('f-addr2').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    birth_date: document.getElementById('f-birthdate').value.trim(),
+    death_date: document.getElementById('f-deathdate').value.trim(),
+    job: document.getElementById('f-job').value.trim(),
+    care_status: document.getElementById('f-care-status').value,
+  };
+
+  pushUndo();
+  if(editingPersonId){
+    const p = state.people[editingPersonId];
+    p.first_name=first; p.last_name=last; p.gender=gender; p.deceased=dead; p.death_confirmed=dead?deathConf:false;
+    p.whatsapp=whatsapp; p.contact_enabled=contactEnabled; p.contact_via=contactVia||null; p.photo=pendingPhotoData||null;
+    p.is_unknown=false; // once a human reviews/edits this card, they're no longer an anonymous placeholder
+    const newFatherId = document.getElementById('f-current-father').value || null;
+    const newMotherId = document.getElementById('f-current-mother').value || null;
+    if(newFatherId!==p.father_id || newMotherId!==p.mother_id){
+      p.father_id = newFatherId; p.mother_id = newMotherId;
+      logAction(`تم تصحيح والدَي ${fullName(p)}`);
+    }
+    Object.assign(p, cardFields);
+    logAction(`تم تعديل بيانات ${fullName(p)}`);
+  } else {
+    const id = uid('p');
+    state.people[id] = { id, first_name:first, last_name:last, gender, deceased:dead, death_confirmed:dead?deathConf:false,
+      father_id:null, mother_id:null, whatsapp, contact_enabled:contactEnabled, contact_via:contactVia||null, photo:pendingPhotoData||null,
+      is_unknown:false, confirmed_as_child:false, alias_of: aliasOf||null, _order: Date.now(),
+      events:[], ...cardFields };
+    selectedId = id;
+    logAction(`تمت إضافة ${first} ${last}`.trim());
+  }
+  saveData(); render(); closeAllModals(); updateToolbarButtons();
+  toast('تم الحفظ');
+});
+
+// Collect a person and every descendant reachable below them (children, grandchildren, ...)
+function collectSubtreeIds(pid, acc){
+  acc = acc || new Set();
+  if(acc.has(pid)) return acc;
+  acc.add(pid);
+  // include this person's own spouse(s) too -- deleting someone should take their marriage
+  // partner(s) with them, not just unlink the marriage and leave a dangling spouse behind
+  marriagesOf(pid).forEach(m=>{ acc.add(m.husband_id); acc.add(m.wife_id); });
+  childrenOf(pid).forEach(c=> collectSubtreeIds(c.id, acc));
+  return acc;
+}
+function deletePerson(pid){
+  const toDelete = collectSubtreeIds(pid);
+  const names = Array.from(toDelete).map(id=>fullName(state.people[id]));
+  const extra = toDelete.size>1 ? ` سيتم أيضًا حذف كل نسله (${toDelete.size-1} فرد إضافي): ${names.slice(1,6).join('، ')}${toDelete.size>6?'...':''}` : '';
+  const linkedCount = Array.from(toDelete).filter(id=>state.people[id] && state.people[id].linked_tree_id).length;
+  const linkedNote = linkedCount ? `\nوسيتم أيضًا إلغاء ${linkedCount} صفحة مرتبطة (ركن قرابة/شجرة مستقلة) بشكل نهائي.` : '';
+  if(!confirm(`سيتم حذف ${fullName(state.people[pid])} وكل زيجاته وكل ذريّته الممتدة لأسفل نهائيًا.${extra}${linkedNote}\nهذا الإجراء لا يمكن التراجع عنه إلا بزر "تراجع" مباشرة بعده. متأكد؟`)) return;
+  const deletedName = fullName(state.people[pid]);
+  pushUndo();
+  // any independent page (marriage corner / subtree) linked from a person we're about to
+  // delete has no reason to keep existing -- remove its registry entry and stored data too
+  if(linkedCount){
+    const registry = loadRegistry();
+    const keep = registry.filter(r=>{
+      const owner = Array.from(toDelete).find(id=>state.people[id] && state.people[id].linked_tree_id===r.id);
+      if(owner){ try{ localStorage.removeItem(storageKeyFor(r.id)); }catch(e){} return false; }
+      return true;
+    });
+    saveRegistry(keep);
+  }
+  // remove every marriage touching any person being deleted (the "horizontal" links)
+  Object.keys(state.marriages).forEach(mid=>{
+    const m = state.marriages[mid];
+    if(toDelete.has(m.husband_id) || toDelete.has(m.wife_id)) delete state.marriages[mid];
+  });
+  // remove aliases pointing to any person being deleted
+  Object.keys(state.people).forEach(id=>{ if(toDelete.has(state.people[id].alias_of)) delete state.people[id]; });
+  // delete the person and every descendant (the "vertical, downward" links)
+  toDelete.forEach(id=> delete state.people[id]);
+  if(toDelete.has(selectedId)) selectedId=null;
+  logAction(`تم حذف ${deletedName}${toDelete.size>1? ' وكل ذريته ('+(toDelete.size-1)+' فرد)':''}`);
+  saveData(); render(); updateToolbarButtons();
+  toast('تم الحذف');
+}
+
+// event message templates -- filled in automatically when a type is picked, editable after
+const EVENT_TEMPLATES = {
+  'خطوبة': (n,d,pl,gd)=> `احتفل${gd==='f'?'ت':''} ${n||'[الاسم]'} بخطوبت${gd==='f'?'ها':'ه'}${d? ' في '+d:' في [التاريخ]'}${pl? ' - مكان: '+pl:''}`,
+  'زواج': (n,d,pl,gd)=> `تزوّج${gd==='f'?'ت':''} ${n||'[الاسم]'}${d? ' في حفل يوم '+d:' في حفل يوم [التاريخ]'}${pl? ' - مكان: '+pl:''}`,
+  'مولود': (n,d,pl,gd)=> `وُلد${gd==='f'?'ت':''} ${n||'[الاسم]'}${d? ' بتاريخ '+d:' بتاريخ [التاريخ]'}`,
+  'نجاح دراسي': (n,d,pl,gd)=> `اجتاز${gd==='f'?'ت':''} ${n||'[الاسم]'} [الشهادة] بتقدير [التقدير]${d? ' في '+d:' في [التاريخ]'}`,
+  'تخرج': (n,d,pl,gd)=> `تخرّج${gd==='f'?'ت':''} ${n||'[الاسم]'} من [الجامعة]${d? ' في '+d:' في [التاريخ]'}`,
+  'ترقية': (n,d,pl,gd)=> `تمت ترقية ${n||'[الاسم]'} إلى [المسمى]${d? ' في '+d:' في [التاريخ]'}`,
+  'عيد ميلاد': (n,d,pl,gd)=> `احتفل${gd==='f'?'ت':''} ${n||'[الاسم]'} بعيد ميلاد${gd==='f'?'ها':'ه'}${d? ' في '+d:' في [التاريخ]'}`,
+  'ذكرى زواج': (n,d,pl,gd)=> `احتفل${gd==='f'?'ت':''} ${n||'[الاسم]'} بذكرى زواج${gd==='f'?'ها':'ه'}${d? ' في '+d:' في [التاريخ]'}`,
+  'عقيقة': (n,d)=> `أُقيمت عقيقة ${n||'[الاسم]'}${d? ' في '+d:' في [التاريخ]'}`,
+  'ختان': (n,d)=> `تم ختان ${n||'[الاسم]'}${d? ' في '+d:' في [التاريخ]'}`,
+  'حج/عمرة': (n,d,pl,gd)=> `${gd==='f'?'أدّت':'أدى'} ${n||'[الاسم]'} فريضة الحج/العمرة${d? ' في '+d:' في [التاريخ]'}`,
+  'وفاة': (n,d,pl,gd)=> `انتقل${gd==='f'?'ت':''} إلى رحمة الله ${n||'[الاسم]'}${d? ' بتاريخ '+d:' بتاريخ [التاريخ]'}${pl? ' - العزاء في '+pl:''}`,
+  'عزاء': (n,d,pl)=> `تقبل التعازي في وفاة ${n||'[الاسم]'}${d? ' يوم '+d:' يوم [التاريخ]'}${pl? ' - مكان: '+pl:''}`,
+  'أخرى': ()=> '',
+};
+// death/condolence events default to reaching everyone; happier/quieter events default to
+// close family only -- the person can always widen or narrow this before sending
+const EVENT_DEFAULT_LEVEL = { 'وفاة':'all', 'عزاء':'all', 'لم شمل':'all' };
+
+/* ============================= EVENT AUDIENCE (by degree) ============================= */
+// Same idea as computeConfirmationAudience, but bucketed into the three publish "degrees" so
+// an event can cascade from close family outward to everyone, computed from the real tree data.
+function computeEventAudience(pid, level){
+  const p = state.people[pid];
+  const seen = new Set([pid]);
+  const out = [];
+  function add(label, id){
+    if(!id || seen.has(id)) return;
+    const person = state.people[id];
+    if(!person) return;
+    seen.add(id); out.push({label, person});
+  }
+  add('الأب', p.father_id); add('الأم', p.mother_id);
+  personList().filter(x=>x.id!==pid && ((p.father_id&&x.father_id===p.father_id)||(p.mother_id&&x.mother_id===p.mother_id)))
+    .forEach(s=>add('أخ/أخت', s.id));
+  childrenOf(pid).forEach(c=>add('ابن/ابنة', c.id));
+  if(level==='first') return out;
+
+  const father = p.father_id? state.people[p.father_id]:null;
+  const mother = p.mother_id? state.people[p.mother_id]:null;
+  if(father){ add('الجد (لأب)', father.father_id); add('الجدة (لأب)', father.mother_id); }
+  if(mother){ add('الجد (لأم)', mother.father_id); add('الجدة (لأم)', mother.mother_id); }
+  childrenOf(pid).forEach(c=>childrenOf(c.id).forEach(gc=>add('حفيد/ة', gc.id)));
+  if(level==='second') return out;
+
+  const paternalUncleIds=[], maternalUncleIds=[];
+  if(father) personList().filter(x=>x.id!==father.id && ((father.father_id&&x.father_id===father.father_id)||(father.mother_id&&x.mother_id===father.mother_id)))
+    .forEach(u=>{ add('عم/عمة', u.id); paternalUncleIds.push(u.id); });
+  if(mother) personList().filter(x=>x.id!==mother.id && ((mother.father_id&&x.father_id===mother.father_id)||(mother.mother_id&&x.mother_id===mother.mother_id)))
+    .forEach(u=>{ add('خال/خالة', u.id); maternalUncleIds.push(u.id); });
+  paternalUncleIds.forEach(uid=>childrenOf(uid).forEach(c=>add('ابن/بنت عم', c.id)));
+  maternalUncleIds.forEach(uid=>childrenOf(uid).forEach(c=>add('ابن/بنت خال', c.id)));
+  if(level==='third') return out;
+
+  personList().filter(x=>!x.alias_of && x.id!==pid && !seen.has(x.id)).forEach(x=>add('فرد من العائلة', x.id));
+  return out;
+}
+
+// Resolve who a WhatsApp message would actually go to for this person, respecting the global
+// switch, their own privacy choice, and an optional stand-in contact (e.g. her father/husband).
+function resolveContact(person){
+  if(!person) return null;
+  if(!state.settings || state.settings.whatsapp_enabled===false) return null;
+  if(person.contact_enabled && person.whatsapp) return { phone: person.whatsapp, via: null };
+  if(person.contact_via){
+    const via = state.people[person.contact_via];
+    if(via && via.contact_enabled && via.whatsapp) return { phone: via.whatsapp, via };
+  }
+  return null;
+}
+function waLink(phone, text){
+  const digits = (phone||'').replace(/[^\d]/g,'');
+  if(!digits) return null;
+  return 'https://wa.me/'+digits+'?text='+encodeURIComponent(text);
+}
+
+/* ============================= PERSON CARD ============================= */
+function openPersonCard(pid){
+  const p = state.people[pid]; if(!p) return;
+  document.getElementById('card-title').textContent = fullName(p);
+  const body = document.getElementById('card-body');
+  const CARE_LABELS = { needs_care:'يحتاج رعاية' };
+  const rows = [
+    ['النوع', p.gender==='m'?'ذكر':'أنثى'],
+    ['الحالة', p.deceased? ('متوفى'+(p.death_confirmed?' (مؤكد)':'')) : 'حي'],
+    ['الحالة الصحية', CARE_LABELS[p.care_status]],
+    ['رقم الهاتف 1', p.phone1], ['رقم الهاتف 2', p.phone2],
+    ['السكن 1', p.addr1], ['السكن 2', p.addr2],
+    ['البريد الإلكتروني', p.email],
+    ['تاريخ الميلاد', p.birth_date], ['تاريخ الوفاة', p.death_date],
+    ['المهنة', p.job],
+  ].filter(([,v])=>v);
+  const spouses = spouseOptions(pid);
+  const kids = childrenOf(pid);
+  let html = '<div style="display:flex;flex-direction:column;gap:8px;font-size:14px">';
+  if(p.photo){ html += `<img src="${p.photo}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--line);margin-bottom:4px">`; }
+  const quickBtns = [];
+  if(p.whatsapp || p.phone1 || p.phone2){
+    const waDigits = (p.whatsapp||p.phone1||p.phone2||'').replace(/[^\d]/g,'');
+    if(waDigits) quickBtns.push(`<a href="https://wa.me/${waDigits}" target="_blank" style="flex:1;text-align:center;padding:8px;border-radius:9px;background:#DFF3E1;color:#1F6B31;text-decoration:none;font-weight:700;font-size:13px">💬 واتساب</a>`);
+  }
+  if(p.phone1 || p.phone2){
+    const callNum = p.phone1 || p.phone2;
+    quickBtns.push(`<a href="tel:${callNum}" style="flex:1;text-align:center;padding:8px;border-radius:9px;background:var(--parchment-deep);color:var(--ink);text-decoration:none;font-weight:700;font-size:13px">📞 اتصال</a>`);
+  }
+  if(quickBtns.length) html += `<div style="display:flex;gap:8px;margin-bottom:4px">${quickBtns.join('')}</div>`;
+  html += '</div>';
+
+  html += `<div class="field" style="margin-top:4px;background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+    <label>🎉 الأحداث والدعوات (إضافة/عرض)</label>
+    <div id="card-events-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div style="border-top:1.5px solid var(--line);margin-top:10px;padding-top:10px;display:flex;flex-direction:column;gap:10px">
+      <div class="row2">
+        <div class="field"><label>نوع الحدث</label>
+          <select id="card-event-type">${Object.keys(EVENT_TEMPLATES).map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>التاريخ</label><input type="text" id="card-event-date" placeholder="اختياري"></div>
+      </div>
+      <div class="field"><label>المكان</label><input type="text" id="card-event-place" placeholder="اختياري"></div>
+      <div class="field"><label>نص الدعوة/الإشعار (يتعبّى تلقائيًا، وتقدر تعدّله)</label>
+        <textarea id="card-event-text" rows="2" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:Cairo"></textarea>
+      </div>
+      <div class="field"><label>مستوى النشر (يُحسب من الشجرة الفعلية -- كل درجة تشمل تلقائيًا كل ما قبلها)</label>
+        <select id="card-event-level">
+          <option value="first">الدرجة الأولى (أب/أم/إخوة/أبناء)</option>
+          <option value="second">الدرجة الثانية (+ أجداد/أحفاد)</option>
+          <option value="third">الدرجة الثالثة (+ أعمام/أخوال/أبناء عم وخال)</option>
+          <option value="all">الجميع</option>
+        </select>
+      </div>
+      <div id="card-event-audience" class="hint"></div>
+      <button class="btn" id="card-add-event">➕ حفظ الحدث وحساب المستلمين</button>
+    </div>
+  </div>`;
+
+  html += '<div style="display:flex;flex-direction:column;gap:8px;font-size:14px;margin-top:16px">';
+  if(rows.length){
+    rows.forEach(([label,val])=>{ html += `<div><b>${label}:</b> ${val}</div>`; });
+  } else {
+    html += '<div class="hint">لا توجد بيانات إضافية مسجّلة لهذا الشخص بعد.</div>';
+  }
+  html += `<div><b>الزوج/ة:</b> ${spouses.length? spouses.map(fullName).join('، ') : '—'}</div>`;
+  html += `<div><b>الأبناء (على الشجرة):</b> ${kids.length? kids.map(fullName).join('، ') : '—'}</div>`;
+  html += '</div>';
+
+  // This workaround only makes sense for a blood daughter of the family (nasab blocks her
+  // children from being added directly to the tree since they'd carry her husband's name) --
+  // it never applies to a son (his children with an outside wife are added normally) or to a
+  // woman who herself married INTO the family (her children with the blood son show normally).
+  if(p.gender==='f' && !p.married_in){
+    html += `<div class="field" style="margin-top:16px;background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+      <label>أبناء غير مضافين للشجرة (ملاحظة نصية فقط)</label>
+      <div class="hint" style="margin-top:2px">لو تزوجت من خارج العائلة، أبناؤها ينتسبون لعائلة زوجها ولا يُضافوا كصناديق في الشجرة -- لكن تقدر تسجّلهم هنا كملاحظة فقط.</div>
+      <div id="card-external-children-list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+      <div class="row2" style="margin-top:8px">
+        <input type="text" id="card-extchild-name" placeholder="الاسم">
+        <select id="card-extchild-gender"><option value="m">ذكر</option><option value="f">أنثى</option></select>
+      </div>
+      <button class="btn" id="card-add-extchild" style="margin-top:8px">➕ إضافة</button>
+    </div>`;
+  }
+
+  body.innerHTML = html;
+  const modalBodyEl = document.querySelector('#modal-card .modal-body');
+  if(modalBodyEl) modalBodyEl.scrollTop = 0;
+  renderCardEvents(pid);
+  const extChildBtn = document.getElementById('card-add-extchild');
+  if(extChildBtn){
+    renderExternalChildren(pid);
+    extChildBtn.onclick=()=>{
+      const name = document.getElementById('card-extchild-name').value.trim();
+      if(!name){ toast('اكتب الاسم'); return; }
+      const gender = document.getElementById('card-extchild-gender').value;
+      pushUndo();
+      if(!p.external_children) p.external_children=[];
+      p.external_children.push({id:uid('ec'), name, gender});
+      logAction(`تمت إضافة ملاحظة ابن/ابنة خارج الشجرة (${name}) لـ${fullName(p)}`);
+      saveData(); renderExternalChildren(pid);
+      document.getElementById('card-extchild-name').value='';
+      toast('تمت الإضافة');
+    };
+  }
+
+  const typeSel = document.getElementById('card-event-type');
+  const dateInp = document.getElementById('card-event-date');
+  const placeInp = document.getElementById('card-event-place');
+  const textArea = document.getElementById('card-event-text');
+  const levelSel = document.getElementById('card-event-level');
+  function refillTemplate(){
+    const fn = EVENT_TEMPLATES[typeSel.value];
+    textArea.value = fn? fn(fullName(p), dateInp.value.trim(), placeInp.value.trim(), p.gender) : '';
+    levelSel.value = EVENT_DEFAULT_LEVEL[typeSel.value] || 'first';
+    refreshAudiencePreview();
+  }
+  function refreshAudiencePreview(){
+    const audience = computeEventAudience(pid, levelSel.value);
+    const box = document.getElementById('card-event-audience');
+    const cascadeNote = levelSel.value==='second' ? ' (يشمل تلقائيًا الدرجة الأولى)'
+      : levelSel.value==='third' ? ' (يشمل تلقائيًا الأولى والثانية)'
+      : levelSel.value==='all' ? ' (يشمل الجميع بما فيهم كل الدرجات)' : '';
+    if(!audience.length){ box.textContent = 'لا يوجد أقارب مسجّلين بعد ضمن هذا المستوى.'; return; }
+    box.innerHTML = 'سيشمل هذا المستوى' + cascadeNote + ' (' + audience.length + '): ' +
+      audience.map(a=>`${a.label}: ${fullName(a.person)}`).join('، ');
+  }
+  typeSel.addEventListener('change', refillTemplate);
+  dateInp.addEventListener('input', refillTemplate);
+  placeInp.addEventListener('input', refillTemplate);
+  levelSel.addEventListener('change', refreshAudiencePreview);
+  refillTemplate();
+
+  document.getElementById('card-add-event').onclick=()=>{
+    pushUndo();
+    if(!p.events) p.events=[];
+    const ev = {
+      id: uid('ev'), type: typeSel.value, date: dateInp.value.trim(), place: placeInp.value.trim(),
+      text: textArea.value.trim(), level: levelSel.value,
+      recipients: computeEventAudience(pid, levelSel.value).map(a=>a.person.id),
+    };
+    p.events.push(ev);
+    logAction(`تم تسجيل حدث "${ev.type}" لـ${fullName(p)}`);
+    saveData(); renderCardEvents(pid);
+    toast('تم حفظ الحدث');
+  };
+  document.getElementById('card-edit-btn').onclick=()=>{ closeAllModals(); openEditPerson(pid); };
+  openModal('modal-card');
+}
+
+function renderExternalChildren(pid){
+  const p = state.people[pid];
+  const list = document.getElementById('card-external-children-list');
+  const items = p.external_children||[];
+  if(!items.length){ list.innerHTML = '<div class="hint">لا توجد ملاحظات مسجّلة.</div>'; return; }
+  list.innerHTML = items.map(c=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;background:var(--card-bg)">
+      <span>${c.name} (${c.gender==='m'?'ذكر':'أنثى'})</span>
+      <button class="btn" style="padding:3px 9px;font-size:12px" data-ec="${c.id}">حذف</button>
+    </div>`).join('');
+  list.querySelectorAll('[data-ec]').forEach(btn=>{
+    btn.onclick=()=>{
+      pushUndo();
+      p.external_children = (p.external_children||[]).filter(c=>c.id!==btn.getAttribute('data-ec'));
+      saveData(); renderExternalChildren(pid); toast('تم الحذف');
+    };
+  });
+}
+function buildEventInviteLink(personName, ev){
+  const payload = { personName, type: ev.type, date: ev.date, place: ev.place, text: ev.text };
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  return location.origin + location.pathname + '#eventinvite=' + encoded;
+}
+function showEventInviteView(data){
+  document.body.innerHTML = `
+    <div style="max-width:480px;margin:60px auto;padding:24px;font-family:Cairo,sans-serif;background:#FFFCF5;border:1.5px solid #C9BFA4;border-radius:16px;text-align:center">
+      <div style="font-family:'Markazi Text',serif;font-size:24px;font-weight:700;margin-bottom:6px">🎉 دعوة/إشعار عائلي</div>
+      <div style="font-size:16px;font-weight:700;margin-top:10px">${data.type||''} -- ${data.personName||''}</div>
+      <div style="font-size:13.5px;color:#4B5A57;margin-top:6px">${data.date||''}${data.place? ' — '+data.place:''}</div>
+      <div style="font-size:14px;margin-top:14px;line-height:1.8">${data.text||''}</div>
+      <div id="invite-actions" style="display:flex;flex-direction:column;gap:8px;margin-top:20px"></div>
+      <div id="invite-done" style="display:none;margin-top:14px;font-weight:700;color:#1F6B31">✓ تم تسجيل ردّك محليًا على هذا الجهاز.</div>
+    </div>`;
+  const actions = document.getElementById('invite-actions');
+  const isSad = data.type==='وفاة' || data.type==='عزاء';
+  const options = isSad ? [['أعزي']] : [['سأحضر'],['لن أحضر']];
+  options.push(['علمت']);
+  options.forEach(([label])=>{
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = 'padding:10px;border-radius:9px;border:1.5px solid #C9BFA4;background:#F7F2E7;font-family:Cairo;font-weight:700;cursor:pointer';
+    btn.onclick = ()=>{
+      try{
+        const received = JSON.parse(localStorage.getItem('received-events')||'[]');
+        received.push({ ...data, response: label, receivedAt: new Date().toISOString() });
+        localStorage.setItem('received-events', JSON.stringify(received));
+      }catch(e){}
+      actions.style.display='none';
+      document.getElementById('invite-done').style.display='block';
+    };
+    actions.appendChild(btn);
+  });
+}
+
+function renderCardEvents(pid){
+  const p = state.people[pid];
+  const list = document.getElementById('card-events-list');
+  const events = p.events||[];
+  if(!events.length){ list.innerHTML = '<div class="hint">لا توجد أحداث مسجّلة بعد.</div>'; return; }
+  list.innerHTML = events.map(ev=>{
+    const recipients = (ev.recipients||[]).map(id=>state.people[id]).filter(Boolean);
+    const waButtons = recipients.map(r=>{
+      const contact = resolveContact(r);
+      const link = contact? waLink(contact.phone, ev.text||''): null;
+      const label = contact && contact.via ? `${fullName(r)} (عبر ${fullName(contact.via)})` : fullName(r);
+      return link
+        ? `<a href="${link}" target="_blank" style="display:inline-block;margin:3px;padding:4px 10px;border-radius:14px;background:#DFF3E1;color:#1F6B31;font-size:12px;text-decoration:none;font-weight:700">💬 ${label}</a>`
+        : `<span style="display:inline-block;margin:3px;padding:4px 10px;border-radius:14px;background:var(--parchment-deep);color:var(--ink-soft);font-size:12px">${label} (لا يوجد تواصل مباشر)</span>`;
+    }).join('');
+    const inviteLink = buildEventInviteLink(fullName(p), ev);
+    return `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span><b>${ev.type}</b>${ev.date? ' — '+ev.date:''}${ev.place? ' — '+ev.place:''}</span>
+        <button class="btn" style="padding:3px 9px;font-size:12px" data-ev="${ev.id}">حذف</button>
+      </div>
+      ${ev.text? `<div style="margin-top:6px;color:var(--ink-soft)">${ev.text}</div>`:''}
+      <div style="margin-top:6px">${waButtons || '<span class="hint">لا يوجد مستلمون بعد</span>'}</div>
+      <div style="margin-top:6px"><a href="${inviteLink}" target="_blank" style="font-size:11.5px;color:var(--gold)">🔗 رابط دعوة عام (لأي طريقة إرسال) -- الرد عليه يُسجَّل تلقائيًا عند المستلم</a></div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-ev]').forEach(btn=>{
+    btn.onclick=()=>{
+      pushUndo();
+      p.events = (p.events||[]).filter(e=>e.id!==btn.getAttribute('data-ev'));
+      saveData(); renderCardEvents(pid); toast('تم حذف الحدث');
+    };
+  });
+}
+
+/* ============================= ADD RELATION ============================= */
+function openAddRelation(baseId){
+  const base = state.people[baseId];
+  const body = document.getElementById('relation-body');
+  body.innerHTML='';
+  // A spouse who married INTO the family (or an auto-created "unknown" spouse) never gets a
+  // father/mother of their own added -- this is what keeps cousin-marriages and similar
+  // cross-links from ever turning the tree into a graph. Only their own children continue
+  // the drawing downward.
+  const canAddParents = !(base.father_id && base.mother_id) && !base.married_in && !base.is_unknown;
+  // Nasab rule: a man who married INTO this family (i.e. he's the outside husband of a blood
+  // daughter) never gets children added here -- his kids carry his own family's name/lineage,
+  // so they belong on HIS family's tree, not this one. A married-in wife's children DO stay
+  // (they carry the blood son's name), so this restriction only applies to married-in males.
+  const blockedByNasab = base.gender==='m' && base.married_in;
+  let options = [];
+  if(base.gender==='m'){
+    options = [['spouse','➕ زوجة']];
+    if(!blockedByNasab) options.push(['son','➕ ابن'],['daughter','➕ ابنة']);
+    if(canAddParents) options.push(['father','➕ أب'],['mother','➕ أم']);
+  } else {
+    options = [['spouse','➕ زوج']];
+    if(canAddParents) options.push(['father','➕ أب'],['mother','➕ أم']);
+  }
+  if(blockedByNasab){
+    const note = document.createElement('div'); note.className='hint';
+    note.textContent = 'هذا الشخص متزوج من ابنة العائلة لكنه من خارجها — أبناؤه ينتسبون لعائلته هو، لذلك لا تُضاف هنا.';
+    body.appendChild(note);
+  }
+  const sel = document.createElement('div'); sel.className='field';
+  sel.innerHTML = '<label>نوع العلاقة</label>';
+  const selectEl = document.createElement('select'); selectEl.id='rel-type';
+  options.forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; selectEl.appendChild(o); });
+  sel.appendChild(selectEl); body.appendChild(sel);
+
+  const dynamic = document.createElement('div'); dynamic.id='rel-dynamic'; dynamic.style.display='flex'; dynamic.style.flexDirection='column'; dynamic.style.gap='14px';
+  body.appendChild(dynamic);
+
+  let unknownSpouseConfirmed = false;
+  function renderDynamic(){
+    const type = selectEl.value;
+    dynamic.innerHTML='';
+    const saveBtn = document.getElementById('btn-save-relation');
+
+    // Guided marriage-first flow: building the tree spouse-before-children keeps the layout
+    // stable, so if there's no spouse registered yet, stop and offer the choice explicitly
+    // instead of silently creating one in the background.
+    if((type==='son'||type==='daughter') && spouseOptions(baseId).length===0 && !unknownSpouseConfirmed){
+      saveBtn.style.display = 'none';
+      const guide = document.createElement('div');
+      const spouseWord = base.gender==='m' ? 'زوجة' : 'زوج';
+      guide.innerHTML = `
+        <div class="hint" style="font-size:13.5px">لسه معندكش ${spouseWord} مسجّلة لـ <b>${fullName(base)}</b>. الأفضل دايمًا نسجّل الزواج الأول، وبعدها الأبناء -- ده بيخلي بناء الشجرة أدق وأوضح.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <button class="btn btn-primary" id="rel-guide-register">📝 سجّل بيانات ${spouseWord} الآن</button>
+          <button class="btn" id="rel-guide-unknown">➡️ كمّل تسجيل ${type==='son'?'الابن':'الابنة'} ثم عدّل بيانات الزوجة أم ${type==='son'?'الابن':'الابنة'}</button>
+        </div>`;
+      dynamic.appendChild(guide);
+      document.getElementById('rel-guide-register').onclick=()=>{ selectEl.value='spouse'; renderDynamic(); };
+      document.getElementById('rel-guide-unknown').onclick=()=>{ unknownSpouseConfirmed=true; renderDynamic(); };
+      return;
+    }
+    saveBtn.style.display = '';
+
+    const row = document.createElement('div'); row.className='row2';
+    row.innerHTML = `<div class="field"><label>الاسم *</label><input type="text" id="rel-first"></div>
+                      <div class="field"><label>اللقب (اختياري)</label><input type="text" id="rel-last"></div>`;
+    dynamic.appendChild(row);
+
+    if(type==='son'||type==='daughter'){
+      const otherLabel = base.gender==='m' ? 'الأم' : 'الأب';
+      const otherPlaceholder = base.gender==='m' ? 'مجهولة' : 'مجهول';
+      const motherField = document.createElement('div'); motherField.className='field';
+      motherField.innerHTML = `<label>${otherLabel} (اختر من الأزواج الموجودين أو اتركها لإنشاء "${otherPlaceholder}" تلقائياً)</label>`;
+      const motherSel = document.createElement('select'); motherSel.id='rel-mother';
+      const unk = document.createElement('option'); unk.value=''; unk.textContent=`-- ${otherPlaceholder} --`; motherSel.appendChild(unk);
+      spouseOptions(baseId).forEach(w=>{ const o=document.createElement('option'); o.value=w.id; o.textContent=fullName(w); motherSel.appendChild(o); });
+      motherField.appendChild(motherSel); dynamic.appendChild(motherField);
+    }
+    if(type==='spouse'){
+      const hint = document.createElement('div'); hint.className='hint'; hint.textContent='سيتم إنشاء زواج جديد. في حال وجود أكثر من زوجة، ستوزّع بالتناوب يمين/يسار تلقائياً.';
+      dynamic.appendChild(hint);
+    }
+    const statusField = document.createElement('div'); statusField.className='field';
+    statusField.innerHTML = `<label>الحالة</label><div class="radio-group">
+      <label class="radio-opt"><input type="radio" name="rel-alive" value="alive" checked> حي</label>
+      <label class="radio-opt"><input type="radio" name="rel-alive" value="dead"> متوفى</label></div>`;
+    dynamic.appendChild(statusField);
+  }
+  selectEl.addEventListener('change', renderDynamic);
+  renderDynamic();
+  pendingRelation = {baseId};
+  openModal('modal-relation');
+}
+
+// Always ground a child under a real marriage unit instead of a lone parent -- this is what
+// keeps the layout stable. If no spouse was picked, reuse this person's existing "مجهول/ة"
+// spouse if one was already created, otherwise create one automatically (editable later).
+function ensureUnknownSpouse(baseId){
+  const base = state.people[baseId];
+  const existing = marriagesOf(baseId)
+    .map(m=> base.gender==='m' ? state.people[m.wife_id] : state.people[m.husband_id])
+    .find(p=>p && p.is_unknown);
+  if(existing) return existing.id;
+  const newId = uid('p');
+  const gender = base.gender==='m' ? 'f' : 'm';
+  state.people[newId] = { id:newId, first_name: gender==='f' ? 'مجهولة' : 'مجهول', last_name:'', gender,
+    deceased:false, death_confirmed:false, father_id:null, mother_id:null, whatsapp:'',
+    is_unknown:true, married_in:true, confirmed_as_child:false, alias_of:null, _order:Date.now(), events:[] };
+  const mid = uid('m');
+  if(base.gender==='m') state.marriages[mid] = {id:mid, husband_id:baseId, wife_id:newId, order:marriagesOf(baseId).length, confirmed:false};
+  else state.marriages[mid] = {id:mid, husband_id:newId, wife_id:baseId, order:marriagesOf(baseId).length, confirmed:false};
+  return newId;
+}
+
+document.getElementById('btn-save-relation').addEventListener('click',()=>{
+  const baseId = pendingRelation.baseId;
+  const base = state.people[baseId];
+  const type = document.getElementById('rel-type').value;
+  const first = document.getElementById('rel-first').value.trim();
+  if(!first){ toast('الاسم مطلوب'); return; }
+  const last = document.getElementById('rel-last').value.trim();
+  const dead = document.querySelector('input[name=rel-alive]:checked').value==='dead';
+
+  pushUndo();
+  const newId = uid('p');
+  let newGender='m';
+  if(type==='spouse') newGender = base.gender==='m'?'f':'m';
+  if(type==='son') newGender='m';
+  if(type==='daughter') newGender='f';
+  if(type==='father') newGender='m';
+  if(type==='mother') newGender='f';
+
+  const newPerson = { id:newId, first_name:first, last_name:last, gender:newGender, deceased:dead, death_confirmed:false,
+    father_id:null, mother_id:null, whatsapp:'', is_unknown:false, married_in: type==='spouse', confirmed_as_child:false, alias_of:null, _order:Date.now(), events:[] };
+  state.people[newId]=newPerson;
+
+  if(type==='father'){
+    base.father_id=newId;
+    // auto-create an unknown spouse for the new father too, so the "+" marriage marker
+    // appears immediately instead of him floating with no partner
+    if(!base.mother_id) base.mother_id = ensureUnknownSpouse(newId);
+  }
+  else if(type==='mother'){
+    base.mother_id=newId;
+    if(!base.father_id) base.father_id = ensureUnknownSpouse(newId);
+  }
+  else if(type==='spouse'){
+    const mid=uid('m');
+    if(base.gender==='m') state.marriages[mid]={id:mid,husband_id:baseId,wife_id:newId,order:marriagesOf(baseId).length,confirmed:false};
+    else state.marriages[mid]={id:mid,husband_id:newId,wife_id:baseId,order:marriagesOf(baseId).length,confirmed:false};
+  } else if(type==='son'||type==='daughter'){
+    const motherSel = document.getElementById('rel-mother');
+    let otherParentId = motherSel ? motherSel.value : '';
+    if(!otherParentId) otherParentId = ensureUnknownSpouse(baseId);
+    if(base.gender==='m'){
+      newPerson.father_id = baseId;
+      newPerson.mother_id = otherParentId;
+    } else {
+      newPerson.mother_id = baseId;
+      newPerson.father_id = otherParentId;
+    }
+  }
+  saveData(); render(); closeAllModals();
+  logAction(`تمت إضافة ${fullName(newPerson)} كـ${type} لـ${fullName(base)}`);
+  toast('تمت إضافة الشخص والعلاقة');
+});
+
+/* ============================= CONFIRM SHARE (simulated) ============================= */
+// Who is this relationship-confirmation actually relevant to? Per the family's rule: a child's
+// parents, full/half siblings, both sets of grandparents, the parents' siblings (uncles/aunts),
+// and those uncles'/aunts' children (cousins) -- everyone with a direct stake in whether this
+// parent-child link is accurate.
+function computeConfirmationAudience(pid){
+  const p = state.people[pid];
+  const seen = new Set([pid]);
+  const list = [];
+  function add(label, id){
+    if(!id || seen.has(id)) return null;
+    const person = state.people[id];
+    if(!person) return null;
+    seen.add(id);
+    list.push({label, name: fullName(person)});
+    return person;
+  }
+  add('الأب', p.father_id);
+  add('الأم', p.mother_id);
+  personList().filter(x=>x.id!==pid && ((p.father_id && x.father_id===p.father_id) || (p.mother_id && x.mother_id===p.mother_id)))
+    .forEach(s=>add('أخ/أخت', s.id));
+
+  const father = p.father_id ? state.people[p.father_id] : null;
+  const mother = p.mother_id ? state.people[p.mother_id] : null;
+  const paternalUncleIds = [], maternalUncleIds = [];
+  if(father){
+    add('الجد (لأب)', father.father_id);
+    add('الجدة (لأب)', father.mother_id);
+    personList().filter(x=>x.id!==father.id && ((father.father_id && x.father_id===father.father_id) || (father.mother_id && x.mother_id===father.mother_id)))
+      .forEach(u=>{ if(add('عم/عمة', u.id)) paternalUncleIds.push(u.id); });
+  }
+  if(mother){
+    add('الجد (لأم)', mother.father_id);
+    add('الجدة (لأم)', mother.mother_id);
+    personList().filter(x=>x.id!==mother.id && ((mother.father_id && x.father_id===mother.father_id) || (mother.mother_id && x.mother_id===mother.mother_id)))
+      .forEach(u=>{ if(add('خال/خالة', u.id)) maternalUncleIds.push(u.id); });
+  }
+  paternalUncleIds.forEach(uid=>{
+    personList().filter(c=>c.father_id===uid||c.mother_id===uid).forEach(c=>add('ابن/بنت عم', c.id));
+  });
+  maternalUncleIds.forEach(uid=>{
+    personList().filter(c=>c.father_id===uid||c.mother_id===uid).forEach(c=>add('ابن/بنت خال', c.id));
+  });
+  return list;
+}
+
+function openConfirmShare(pid){
+  const p = state.people[pid];
+  const body = document.getElementById('confirm-body');
+  let relDesc = 'صلة القرابة';
+  if(p.father_id) relDesc = `${fullName(p)} هو ابن ${fullName(state.people[p.father_id])}`;
+  const link = location.origin+location.pathname+'#confirm='+pid;
+  const audience = computeConfirmationAudience(pid);
+  const audienceHtml = audience.length
+    ? '<ul style="margin:6px 0 0;padding-inline-start:18px;font-size:13px;line-height:1.9">'
+      + audience.map(a=>`<li><b>${a.label}:</b> ${a.name}</li>`).join('') + '</ul>'
+    : '<div style="font-size:13px;color:var(--ink-soft)">لا يوجد أقارب مسجّلين بعد في الشجرة لهذا الشخص (الأب/الأم/الإخوة/الأجداد/الأعمام/الأخوال وأبنائهم).</div>';
+  body.innerHTML = `
+    <div class="hint">رابط خاص وسري يُرسل عبر واتساب للطرف الآخر لتأكيد صلة القرابة فقط (لا يعرض بيانات للتعديل).</div>
+    <div class="link-box"><input type="text" id="confirm-link" value="${link}" readonly><button class="btn" data-copy="confirm-link">نسخ</button></div>
+    <div class="field">
+      <label>الأشخاص الذين يخصّهم هذا التأكيد (يحق لهم الاطّلاع والتصويت)</label>
+      ${audienceHtml}
+    </div>
+    <div class="hint">محاكاة: تخيّل أن أحد هؤلاء فتح الرابط وسيسأل: <b>هل ${fullName(p)} فعلاً ${relDesc.split('هو')[1]||''}؟</b></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" id="sim-confirm-yes">✓ تأكيد</button>
+      <button class="btn btn-danger" id="sim-confirm-no">✗ رفض</button>
+    </div>`;
+  openModal('modal-confirm');
+  document.getElementById('sim-confirm-yes').onclick=()=>{
+    pushUndo(); p.confirmed_as_child = true; saveData(); render(); closeAllModals(); toast('تم تأكيد العلاقة ✓');
+  };
+  document.getElementById('sim-confirm-no').onclick=()=>{
+    closeAllModals(); toast('تم رفض التأكيد');
+  };
+}
+
+/* ============================= SHARE (read-only link) ============================= */
+function buildMaskedTreeJson(){
+  const masked = JSON.parse(JSON.stringify(state));
+  // sharing a tree never carries anyone's personal-card details -- only names/gender/relations
+  Object.values(masked.people).forEach(p=>{
+    p.whatsapp=''; p.phone1=''; p.phone2=''; p.addr1=''; p.addr2=''; p.email='';
+    p.birth_date=''; p.death_date=''; p.job=''; p.events=[]; p.contact_enabled=false; p.contact_via=null;
+    p.external_children=[]; p.photo=null; p.care_status='';
+  });
+  masked.log = [];
+  if(masked.settings) masked.settings.pin = null;
+  return masked;
+}
+document.getElementById('btn-share').addEventListener('click',()=>{
+  // a marriage/kinship corner is share-for-viewing only -- no editable-copy option, per the
+  // family's own rule for that page type
+  document.getElementById('share-choice-copy').style.display = state.corner_type==='marriage-corner' ? 'none' : '';
+  openModal('modal-share-choice');
+});
+document.getElementById('share-choice-view').addEventListener('click',()=>{
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(buildMaskedTreeJson()))));
+  const link = location.origin+location.pathname+'#view='+encoded;
+  document.getElementById('share-modal-title').textContent = '🔍 رابط للمشاهدة فقط';
+  document.getElementById('share-modal-hint').textContent = 'رابط للقراءة فقط — لا تظهر فيه أزرار التحكم ولا بيانات البطاقة الشخصية.';
+  document.getElementById('share-link-general').value = link;
+  openModal('modal-share');
+});
+document.getElementById('share-choice-copy').addEventListener('click',()=>{
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(buildMaskedTreeJson()))));
+  const link = location.origin+location.pathname+'#edit='+encoded;
+  document.getElementById('share-modal-title').textContent = '📋 رابط نسخة قابلة للتعديل';
+  document.getElementById('share-modal-hint').textContent = 'من يفتح هذا الرابط هيحصل مباشرة على نسخة مستقلة قابلة للتعديل عنده هو، منفصلة تمامًا عن شجرتك.';
+  document.getElementById('share-link-general').value = link;
+  openModal('modal-share');
+});
+
+document.addEventListener('click',(e)=>{
+  const btn = e.target.closest('[data-copy]');
+  if(btn){
+    const input = document.getElementById(btn.getAttribute('data-copy'));
+    input.select(); document.execCommand('copy');
+    toast('تم نسخ الرابط');
+  }
+  if(e.target.hasAttribute('data-close')) closeAllModals();
+});
+
+/* ============================= TRANSFER / SECRET KEY ============================= */
+document.getElementById('btn-transfer').addEventListener('click',()=>{
+  genTransferLink(); openModal('modal-transfer');
+});
+function genTransferLink(){
+  const token = uid('transfer').toUpperCase();
+  document.getElementById('transfer-link').value = location.origin+location.pathname+'#transfer='+token;
+}
+document.getElementById('btn-gen-transfer').addEventListener('click', genTransferLink);
+
+document.getElementById('btn-secret').addEventListener('click',()=>{
+  const key = 'FAMILY-'+Math.floor(100+Math.random()*900)+'-'+Math.random().toString(36).slice(2,5).toUpperCase();
+  document.getElementById('secret-key').value = key;
+  openModal('modal-secret');
+});
+
+/* ============================= EVENTS TIMELINE ============================= */
+document.getElementById('btn-events').addEventListener('click',()=>{
+  const body = document.getElementById('events-timeline-body');
+  const all = [];
+  personList().filter(p=>!p.alias_of).forEach(p=>{
+    (p.events||[]).forEach(ev=> all.push({...ev, personName: fullName(p)}));
+  });
+  all.sort((a,b)=>{
+    const da = Date.parse(a.date)||0, db = Date.parse(b.date)||0;
+    if(da && db) return db-da;
+    return (a.date||'').localeCompare(b.date||'');
+  });
+  if(!all.length){
+    body.innerHTML = '<div class="hint">لا توجد أحداث مسجّلة بعد في الشجرة. أضف حدثًا من "ℹ️ البطاقة والأحداث" على بطاقة أي شخص.</div>';
+  } else {
+    body.innerHTML = all.map(ev=>`
+      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between"><b>${ev.type}</b><span style="color:var(--ink-soft);font-size:12.5px">${ev.date||''}</span></div>
+        <div style="font-size:13px;margin-top:4px"><b>${ev.personName}</b>${ev.place? ' — '+ev.place:''}</div>
+        ${ev.text? `<div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">${ev.text}</div>`:''}
+      </div>`).join('');
+  }
+  openModal('modal-events');
+});
+
+/* ============================= SETTINGS ============================= */
+
+/* ============================= ULTIMATE / DISTANT ANCESTOR ============================= */
+document.getElementById('btn-ultimate-ancestor').addEventListener('click',()=>{
+  const gens = computeGenerations();
+  const sel = document.getElementById('ua-target');
+  const roots = personList().filter(p=>!p.alias_of && (gens[p.id]||0)===0);
+  if(!roots.length){ toast('لازم يكون في شخص واحد على الأقل بالشجرة الأول'); return; }
+  sel.innerHTML = roots.map(p=>`<option value="${p.id}">${fullName(p)}</option>`).join('');
+  document.getElementById('ua-name').value='';
+  openModal('modal-ultimate-ancestor');
+});
+document.getElementById('btn-save-ultimate-ancestor').addEventListener('click',()=>{
+  const name = document.getElementById('ua-name').value.trim();
+  if(!name){ toast('اكتب اسم الجد الأعلى'); return; }
+  const targetId = document.getElementById('ua-target').value;
+  const target = state.people[targetId];
+  if(!target) return;
+  pushUndo();
+  const newId = uid('p');
+  state.people[newId] = { id:newId, first_name:name, last_name:'', gender:'m', deceased:true, death_confirmed:false,
+    father_id:null, mother_id:null, whatsapp:'', is_unknown:false, married_in:false, confirmed_as_child:false,
+    alias_of:null, _order:Date.now(), events:[] };
+  target.father_id = newId;
+  if(!target.mother_id) target.mother_id = ensureUnknownSpouse(newId);
+  target.generations_unknown = true; // marks the connector as spanning an undocumented number of generations
+  logAction(`تم ربط ${fullName(target)} بجد أعلى (${name}) بأجيال غير موثقة بينهما`);
+  saveData(); render(); centerTree(); closeAllModals();
+  toast('تم إضافة الجد الأعلى');
+});
+
+document.getElementById('btn-settings').addEventListener('click',()=>{
+  document.getElementById('settings-whatsapp-enabled').checked = state.settings? state.settings.whatsapp_enabled!==false : true;
+  document.getElementById('settings-pin').value = (state.settings && state.settings.pin) || '';
+  openModal('modal-settings');
+});
+document.getElementById('btn-save-settings').addEventListener('click',()=>{
+  pushUndo();
+  if(!state.settings) state.settings = {};
+  state.settings.whatsapp_enabled = document.getElementById('settings-whatsapp-enabled').checked;
+  state.settings.pin = document.getElementById('settings-pin').value.trim() || null;
+  saveData(); closeAllModals(); toast('تم حفظ الإعدادات');
+});
+
+/* ============================= MERGE ============================= */
+document.getElementById('btn-merge').addEventListener('click',()=>{
+  const body = document.getElementById('merge-body');
+  if(!mergeState){
+    body.innerHTML = `
+      <div class="hint">الصق رابط مشاركة شجرة أخرى (الجزء الذي يبدأ بـ #view=) لبدء عملية الدمج ورصد نقاط الخلاف.</div>
+      <div class="field"><label>رابط أو كود الشجرة الأخرى</label><textarea id="merge-input" rows="3" placeholder="#view=...."></textarea></div>
+      <button class="btn btn-primary" id="btn-start-merge">بدء المقارنة</button>`;
+    openModal('modal-merge');
+    document.getElementById('btn-start-merge').onclick = startMerge;
+  } else {
+    renderMergeDiffs();
+    openModal('modal-merge');
+  }
+});
+
+// Normalize Arabic hamza/alef variants (أ إ آ ء ئ ؤ ة) so merge-matching isn't thrown off by
+// spelling differences between the two trees (e.g. "أحمد" vs "احمد").
+function normalizeArabicName(s){
+  if(!s) return '';
+  return s.replace(/[أإآ]/g,'ا').replace(/[ئؤ]/g,'ء').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();
+}
+function startMerge(){
+  const raw = document.getElementById('merge-input').value.trim();
+  const encoded = raw.includes('#view=') ? raw.split('#view=')[1] : raw;
+  let otherData;
+  try{ otherData = JSON.parse(decodeURIComponent(escape(atob(encoded)))); }
+  catch(e){ toast('تعذّرت قراءة الرابط'); return; }
+
+  // match people by full name (hamza-normalized) + gender as heuristic
+  const mine = personList().filter(p=>!p.alias_of);
+  const theirs = Object.values(otherData.people).filter(p=>!p.alias_of);
+  const diffs = [];
+  theirs.forEach(tp=>{
+    const match = mine.find(mp=> normalizeArabicName(fullName(mp))===normalizeArabicName(fullName(tp)) && mp.gender===tp.gender);
+    if(match){
+      ['first_name','last_name','gender'].forEach(field=>{
+        const v1 = match[field]||'', v2 = tp[field]||'';
+        const differs = field==='gender' ? v1!==v2 : normalizeArabicName(v1)!==normalizeArabicName(v2);
+        if(differs){
+          diffs.push({person:fullName(match), field, value1:v1||'—', value2:v2||'—', status:'pending', targetId:match.id});
+        }
+      });
+      const father1 = match.father_id? fullName(state.people[match.father_id]):'—';
+      const father2 = tp.father_id? fullName(otherData.people[tp.father_id]):'—';
+      if(normalizeArabicName(father1)!==normalizeArabicName(father2)) diffs.push({person:fullName(match), field:'الأب', value1:father1, value2:father2, status:'pending', targetId:match.id, meta:'father'});
+      const mother1 = match.mother_id? fullName(state.people[match.mother_id]):'—';
+      const mother2 = tp.mother_id? fullName(otherData.people[tp.mother_id]):'—';
+      if(normalizeArabicName(mother1)!==normalizeArabicName(mother2)) diffs.push({person:fullName(match), field:'الأم', value1:mother1, value2:mother2, status:'pending', targetId:match.id, meta:'mother'});
+    } else {
+      diffs.push({person:fullName(tp), field:'شخص جديد بالكامل', value1:'غير موجود عندك', value2:'موجود في الشجرة الأخرى', status:'pending', isNew:true});
+    }
+  });
+  mergeState = {other: otherData, diffs};
+  toast(`تم رصد ${diffs.length} نقطة اختلاف`);
+  renderMergeDiffs();
+  refreshStatBar();
+}
+
+function renderMergeDiffs(){
+  const body = document.getElementById('merge-body');
+  if(!mergeState.diffs.length){ body.innerHTML='<div class="hint">لا توجد أي اختلافات — الشجرتان متطابقتان ويمكن الدمج مباشرة.</div>'; return; }
+  body.innerHTML='';
+  mergeState.diffs.forEach((d,i)=>{
+    const div = document.createElement('div'); div.className='diff-item';
+    const statusClass = d.status==='agreed'?'status-agreed':d.status==='conflict'?'status-conflict':'status-pending';
+    const statusText = d.status==='agreed'?'متفق عليها':d.status==='conflict'?'مختلف عليها':'قيد الانتظار';
+    div.innerHTML = `<div class="diff-name">${d.person} — ${d.field}</div>
+      <div class="diff-status ${statusClass}">${statusText}</div>
+      <div class="diff-vals">
+        <div class="diff-val" data-i="${i}" data-choice="1">شجرتك: ${d.value1}</div>
+        <div class="diff-val" data-i="${i}" data-choice="2">الشجرة الأخرى: ${d.value2}</div>
+      </div>`;
+    body.appendChild(div);
+  });
+  body.querySelectorAll('.diff-val').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const i = +el.getAttribute('data-i'); const choice = el.getAttribute('data-choice');
+      const d = mergeState.diffs[i];
+      d.status = 'agreed'; d.chosen = choice;
+      if(choice==='2' && d.targetId){
+        pushUndo();
+        const target = state.people[d.targetId];
+        if(d.meta==='father'){ /* would need id-mapping in full impl */ }
+        else if(d.meta==='mother'){ }
+        else target[fieldNameFromLabel(d.field)] = d.value2==='—'? '' : d.value2;
+        saveData();
+      }
+      renderMergeDiffs(); render();
+    });
+  });
+}
+function fieldNameFromLabel(label){
+  if(label==='first_name') return 'first_name';
+  if(label==='last_name') return 'last_name';
+  if(label==='gender') return 'gender';
+  return label;
+}
+
+/* ============================= BACKUP / RESTORE ============================= */
+document.getElementById('btn-backup').addEventListener('click',()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `شجرة-العائلة-نسخة-احتياطية-${stamp}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  toast('تم تنزيل النسخة الاحتياطية');
+});
+document.getElementById('btn-restore').addEventListener('click',()=>{
+  document.getElementById('restore-file').click();
+});
+document.getElementById('restore-file').addEventListener('change',(e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  if(!confirm('هيتم استبدال الشجرة الحالية بالكامل بمحتوى الملف ده. هل أنت متأكد؟')){ e.target.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed.people) throw new Error('ملف غير صالح');
+      pushUndo();
+      state = parsed;
+      if(!state.settings) state.settings = { whatsapp_enabled: true };
+      saveData(); render(); centerTree();
+      toast('تم استعادة النسخة الاحتياطية بنجاح');
+    }catch(err){ toast('الملف ده مش نسخة احتياطية صالحة'); }
+    e.target.value='';
+  };
+  reader.readAsText(file);
+});
+
+/* ============================= GEDCOM EXPORT ============================= */
+// GEDCOM is the universal genealogy file format -- exporting to it means the tree isn't
+// permanently locked into this one app; any other genealogy program can open it too.
+function buildGedcom(){
+  const people = personList().filter(p=>!p.alias_of);
+  const idMap = {};
+  people.forEach((p,i)=> idMap[p.id] = 'I'+(i+1));
+  const famMap = {};
+  marriageList().forEach((m,i)=> famMap[m.id] = 'F'+(i+1));
+
+  let lines = ['0 HEAD','1 SOUR FamilyTreeApp','1 GEDC','2 VERS 5.5.1','2 FORM LINEAGE-LINKED','1 CHAR UTF-8'];
+  people.forEach(p=>{
+    lines.push(`0 @${idMap[p.id]}@ INDI`);
+    lines.push(`1 NAME ${p.first_name||''} /${p.last_name||''}/`);
+    lines.push(`1 SEX ${p.gender==='m'?'M':'F'}`);
+    if(p.birth_date){ lines.push('1 BIRT'); lines.push(`2 DATE ${p.birth_date}`); }
+    if(p.deceased){ lines.push('1 DEAT'); if(p.death_date) lines.push(`2 DATE ${p.death_date}`); }
+    const asChildFam = marriageList().find(m=>
+      (m.husband_id===p.father_id && m.wife_id===p.mother_id) || (m.husband_id===p.mother_id && m.wife_id===p.father_id));
+    if(asChildFam) lines.push(`1 FAMC @${famMap[asChildFam.id]}@`);
+    marriagesOf(p.id).forEach(m=> lines.push(`1 FAMS @${famMap[m.id]}@`));
+  });
+  marriageList().forEach(m=>{
+    lines.push(`0 @${famMap[m.id]}@ FAM`);
+    if(idMap[m.husband_id]) lines.push(`1 HUSB @${idMap[m.husband_id]}@`);
+    if(idMap[m.wife_id]) lines.push(`1 WIFE @${idMap[m.wife_id]}@`);
+    people.filter(c=>(c.father_id===m.husband_id&&c.mother_id===m.wife_id)||(c.father_id===m.wife_id&&c.mother_id===m.husband_id))
+      .forEach(c=> lines.push(`1 CHIL @${idMap[c.id]}@`));
+  });
+  lines.push('0 TRLR');
+  return lines.join('\n');
+}
+document.getElementById('btn-gedcom').addEventListener('click',()=>{
+  const blob = new Blob([buildGedcom()], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'شجرة-العائلة.ged';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  toast('تم تصدير ملف GEDCOM -- يفتح في أي برنامج نسب آخر');
+});
+
+/* ============================= WHAT'S MISSING CHECKLIST ============================= */
+document.getElementById('btn-checklist').addEventListener('click',()=>{
+  const people = personList().filter(p=>!p.alias_of);
+  const noParents = people.filter(p=>!p.father_id && !p.mother_id && !p.married_in && (gensOfCurrentTree()[p.id]||0)>0);
+  const noBirthdate = people.filter(p=>!p.birth_date);
+  const noWhatsappButEnabled = people.filter(p=>p.contact_enabled && !p.whatsapp);
+  const body = document.getElementById('checklist-body');
+  function section(title, list, renderer){
+    if(!list.length) return '';
+    return `<div style="margin-bottom:14px"><b>${title} (${list.length})</b>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${list.slice(0,30).map(renderer).join('')}</div>
+      ${list.length>30? `<div class="hint" style="margin-top:4px">و${list.length-30} آخرين...</div>`:''}
+    </div>`;
+  }
+  const chip = p=>`<span style="background:var(--parchment-deep);padding:4px 10px;border-radius:14px;font-size:12.5px">${fullName(p)}</span>`;
+  let html = '';
+  html += section('أشخاص من غير أب أو أم مسجّل (رغم إنهم مش أول جيل)', noParents, chip);
+  html += section('أشخاص من غير تاريخ ميلاد', noBirthdate, chip);
+  html += section('مفعّل تواصل مباشر لكن مفيش رقم واتساب', noWhatsappButEnabled, chip);
+  if(!html) html = '<div class="hint">✅ ما شاء الله، التوثيق شبه مكتمل — مفيش نواقص واضحة حاليًا.</div>';
+  body.innerHTML = html;
+  openModal('modal-checklist');
+});
+function gensOfCurrentTree(){ return computeGenerations(); }
+
+document.getElementById('btn-received-events').addEventListener('click',()=>{
+  const body = document.getElementById('received-events-body');
+  let received = [];
+  try{ received = JSON.parse(localStorage.getItem('received-events')||'[]'); }catch(e){}
+  if(!received.length){
+    body.innerHTML = '<div class="hint">لسه ما استلمتش أي دعوة عبر رابط دعوة حدث. لما حد يبعتلك رابط دعوة ويتم فتحه على الجهاز ده، ردّك عليه هيتسجل هنا.</div>';
+  } else {
+    body.innerHTML = received.slice().reverse().map(r=>`
+      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between"><b>${r.type||''}</b><span style="color:var(--ink-soft);font-size:12px">ردّك: ${r.response||''}</span></div>
+        <div style="font-size:13px;margin-top:4px"><b>${r.personName||''}</b>${r.place? ' — '+r.place:''}${r.date? ' — '+r.date:''}</div>
+        ${r.text? `<div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">${r.text}</div>`:''}
+      </div>`).join('');
+  }
+  openModal('modal-received-events');
+});
+
+/* ============================= SEARCH ============================= */
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', ()=>{
+  const q = searchInput.value.trim();
+  if(!q){ searchResults.style.display='none'; return; }
+  const matches = personList().filter(p=>!p.alias_of && fullName(p).includes(q)).slice(0,12);
+  if(!matches.length){ searchResults.innerHTML = '<div style="padding:10px;font-size:13px;color:var(--ink-soft)">لا نتائج</div>'; searchResults.style.display='block'; return; }
+  searchResults.innerHTML = matches.map(p=>`<div data-goto="${p.id}" style="padding:9px 12px;cursor:pointer;font-size:13.5px;border-bottom:1px solid var(--parchment-deep)">${fullName(p)}</div>`).join('');
+  searchResults.style.display='block';
+  searchResults.querySelectorAll('[data-goto]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      focusOn(el.getAttribute('data-goto'));
+      searchResults.style.display='none'; searchInput.value='';
+    });
+  });
+});
+document.addEventListener('click',(e)=>{
+  if(!e.target.closest('#search-results') && e.target!==searchInput) searchResults.style.display='none';
+});
+
+/* ============================= EXPORT / PRINT ============================= */
+document.getElementById('btn-export').addEventListener('click',()=>{
+  if(confirm('دوس "موافق" لتصدير الشجرة كصورة PNG، أو "إلغاء" لفتح معاينة طباعة (تقدر تحفظها كـ PDF من نافذة الطباعة).')){
+    exportTreeAsPng();
+  } else {
+    window.print();
+  }
+});
+
+/* ============================= FAMILY BOOK (auto PDF export) ============================= */
+document.getElementById('btn-family-book').addEventListener('click',()=>{
+  const people = personList().filter(p=>!p.alias_of);
+  if(!people.length){ toast('الشجرة فاضية، مفيش حاجة تتصدّر'); return; }
+  const gens = computeGenerations();
+  const sorted = people.slice().sort((a,b)=>(gens[a.id]||0)-(gens[b.id]||0) || (a._order||0)-(b._order||0));
+  const container = document.getElementById('family-book-container');
+  let html = `<div style="max-width:800px;margin:0 auto;font-family:Cairo,sans-serif;direction:rtl">
+    <div style="text-align:center;padding:60px 0 40px">
+      <div style="font-family:'Markazi Text',serif;font-size:40px;font-weight:700">🌳 الكتاب العائلي</div>
+      <div style="color:#4B5A57;margin-top:8px">تم إنشاؤه بتاريخ ${new Date().toLocaleDateString('ar-EG')}</div>
+    </div>`;
+  let lastGen = null;
+  sorted.forEach(p=>{
+    const g = gens[p.id]||0;
+    if(g!==lastGen){ html += `<div style="font-size:20px;font-weight:800;margin:24px 0 10px;border-bottom:2px solid #B98A2E;padding-bottom:4px">الجيل ${g}</div>`; lastGen=g; }
+    const spouses = spouseOptions(p.id).map(fullName).join('، ');
+    const kids = childrenOf(p.id).map(fullName).join('، ');
+    const events = (p.events||[]).map(e=>`${e.type}${e.date?' ('+e.date+')':''}`).join('، ');
+    html += `<div class="book-person">
+      ${p.photo? `<img src="${p.photo}">` : ''}
+      <div>
+        <div style="font-size:17px;font-weight:800">${fullName(p)} ${p.deceased?'(متوفى)':''}</div>
+        <div style="font-size:12.5px;color:#4B5A57;margin-top:3px">
+          ${p.job? 'المهنة: '+p.job+' — ':''}${p.birth_date? 'الميلاد: '+p.birth_date+' — ':''}${p.death_date? 'الوفاة: '+p.death_date:''}
+        </div>
+        ${spouses? `<div style="font-size:12.5px;margin-top:3px"><b>الزوج/ة:</b> ${spouses}</div>`:''}
+        ${kids? `<div style="font-size:12.5px;margin-top:3px"><b>الأبناء:</b> ${kids}</div>`:''}
+        ${events? `<div style="font-size:12.5px;margin-top:3px;color:#B98A2E"><b>أحداث:</b> ${events}</div>`:''}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+  document.body.classList.add('printing-book');
+  window.print();
+  const cleanup = ()=>{ document.body.classList.remove('printing-book'); container.innerHTML=''; window.removeEventListener('afterprint', cleanup); };
+  window.addEventListener('afterprint', cleanup);
+});
+
+function exportTreeAsPng(){
+  const svgEl = document.getElementById('tree-svg');
+  const w = parseInt(svgEl.getAttribute('width'))||1200, h = parseInt(svgEl.getAttribute('height'))||700;
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('width', w); clone.setAttribute('height', h);
+  // inline the CSS variables as literal colors so the exported PNG isn't blank/black
+  const style = document.createElement('style');
+  style.textContent = getComputedStyle(document.documentElement).cssText || '';
+  const serializer = new XMLSerializer();
+  let svgString = serializer.serializeToString(clone);
+  const img = new Image();
+  const svgBlob = new Blob([svgString], {type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(svgBlob);
+  img.onload = ()=>{
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#F7F2E7'; ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(blob=>{
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'شجرة-العائلة.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('تم تصدير الصورة');
+    });
+  };
+  img.onerror = ()=>{ toast('تعذّر تصدير الصورة -- جرّب الطباعة بدل ذلك'); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+
+/* ============================= STATS MODAL ============================= */
+document.getElementById('btn-stats').addEventListener('click',()=>{
+  const s = computeStats();
+  const people = personList().filter(p=>!p.alias_of);
+  const gens = computeGenerations();
+  const genCount = {};
+  people.forEach(p=>{ const g=gens[p.id]||0; genCount[g]=(genCount[g]||0)+1; });
+  const genRows = Object.keys(genCount).sort((a,b)=>a-b).map(g=>`<div>الجيل ${g}: ${genCount[g]} فرد</div>`).join('');
+
+  // fun stats -- most repeated first name
+  const nameCounts = {};
+  people.forEach(p=>{ if(p.first_name){ nameCounts[p.first_name]=(nameCounts[p.first_name]||0)+1; } });
+  const topName = Object.entries(nameCounts).sort((a,b)=>b[1]-a[1])[0];
+
+  // most common job
+  const jobCounts = {};
+  people.forEach(p=>{ if(p.job) jobCounts[p.job]=(jobCounts[p.job]||0)+1; });
+  const topJob = Object.entries(jobCounts).sort((a,b)=>b[1]-a[1])[0];
+
+  // average age (only where both a birth year and either a death year or "alive today" can be inferred)
+  function yearOf(s){ if(!s) return null; const m=s.match(/(\d{4})/); return m? +m[1] : null; }
+  const ages = { all:[], m:[], f:[] };
+  people.forEach(p=>{
+    const by = yearOf(p.birth_date); if(!by) return;
+    const endYear = p.deceased ? (yearOf(p.death_date) || null) : new Date().getFullYear();
+    if(!endYear) return;
+    const age = endYear - by;
+    if(age<0 || age>130) return;
+    ages.all.push(age);
+    if(p.gender==='m') ages.m.push(age); else ages.f.push(age);
+  });
+  const avg = arr=> arr.length? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null;
+  const avgAll = avg(ages.all), avgM = avg(ages.m), avgF = avg(ages.f);
+
+  let funHtml = '';
+  if(topName) funHtml += `<div>🏆 أكثر اسم متكرر: <b>${topName[0]}</b> (${topName[1]} أشخاص)</div>`;
+  if(topJob) funHtml += `<div>💼 أكثر مهنة: <b>${topJob[0]}</b> (${topJob[1]} أشخاص)</div>`;
+  if(avgAll!==null) funHtml += `<div>🎂 متوسط العمر العام: <b>${avgAll} سنة</b>${avgM!==null?` -- الذكور: ${avgM}`:''}${avgF!==null?` -- الإناث: ${avgF}`:''}</div>`;
+  if(!funHtml) funHtml = '<div class="hint">أضف تواريخ ميلاد ومهن لأكثر الأشخاص عشان تظهر إحصائيات ممتعة هنا.</div>';
+
+  document.getElementById('stats-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+      <div><b>إجمالي الأفراد:</b> ${s.total}</div>
+      <div><b>الذكور:</b> ${s.male} — <b>الإناث:</b> ${s.female} <span style="color:var(--ink-soft);font-size:12px">(من دم العائلة فقط)</span></div>
+      <div><b>الأصهار (متزوجون داخل العائلة من خارجها):</b> ${s.inlaws}</div>
+      <div><b>المتوفّون:</b> ${s.deceased}</div>
+      <div><b>عدد الزيجات:</b> ${s.marriages}</div>
+      <div><b>نسبة التوثيق:</b> ${s.pct}%</div>
+      <div><b>عدد الأجيال المسجّلة:</b> ${Object.keys(genCount).length}</div>
+      <div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px">${genRows}</div>
+      <div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px;display:flex;flex-direction:column;gap:6px">
+        <b>🎉 إحصائيات ممتعة</b>
+        ${funHtml}
+      </div>
+    </div>`;
+  openModal('modal-stats');
+});
+
+/* ============================= ACTIVITY LOG ============================= */
+document.getElementById('btn-activity-log').addEventListener('click',()=>{
+  const body = document.getElementById('activity-log-body');
+  const log = (state.log||[]).slice().reverse();
+  if(!log.length){ body.innerHTML = '<div class="hint">لا يوجد أي نشاط مسجّل بعد.</div>'; }
+  else {
+    body.innerHTML = log.map(e=>{
+      const d = new Date(e.ts);
+      const when = isNaN(d) ? '' : d.toLocaleString('ar-EG');
+      return `<div style="border-bottom:1px solid var(--parchment-deep);padding:7px 0;font-size:13px">
+        <div>${e.text}</div><div style="color:var(--ink-soft);font-size:11.5px">${when}</div>
+      </div>`;
+    }).join('');
+  }
+  openModal('modal-activity-log');
+});
+
+/* ============================= UPCOMING BIRTHDAYS ============================= */
+// Best-effort parse of the free-text birth_date field into a {month, day} pair, supporting
+// YYYY-MM-DD and DD/MM(/YYYY) -- a bare year ("1990") has no month/day so it's skipped.
+function extractMonthDay(dateStr){
+  if(!dateStr) return null;
+  let m = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return { month:+m[2], day:+m[3] };
+  m = dateStr.match(/^(\d{1,2})[\/-](\d{1,2})(?:[\/-]\d{2,4})?$/);
+  if(m) return { month:+m[2], day:+m[1] };
+  return null;
+}
+function checkUpcomingBirthdays(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = [];
+  personList().filter(p=>!p.alias_of && !p.deceased && p.birth_date).forEach(p=>{
+    const md = extractMonthDay(p.birth_date);
+    if(!md || md.month<1 || md.month>12 || md.day<1 || md.day>31) return;
+    let next = new Date(today.getFullYear(), md.month-1, md.day);
+    if(next < today) next = new Date(today.getFullYear()+1, md.month-1, md.day);
+    const diffDays = Math.round((next-today)/86400000);
+    if(diffDays>=0 && diffDays<=30) upcoming.push({ p, diffDays });
+  });
+  return upcoming.sort((a,b)=>a.diffDays-b.diffDays);
+}
+function checkUpcomingMemorials(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = [];
+  personList().filter(p=>!p.alias_of && p.deceased && p.death_date).forEach(p=>{
+    const md = extractMonthDay(p.death_date);
+    if(!md || md.month<1 || md.month>12 || md.day<1 || md.day>31) return;
+    let next = new Date(today.getFullYear(), md.month-1, md.day);
+    if(next < today) next = new Date(today.getFullYear()+1, md.month-1, md.day);
+    const diffDays = Math.round((next-today)/86400000);
+    if(diffDays>=0 && diffDays<=30) upcoming.push({ p, diffDays });
+  });
+  return upcoming.sort((a,b)=>a.diffDays-b.diffDays);
+}
+function checkBirthdayBanner(){
+  try{ if(sessionStorage.getItem('birthdayBannerDismissed')) return; }catch(e){}
+  const upcoming = checkUpcomingBirthdays();
+  const memorials = checkUpcomingMemorials();
+  if(!upcoming.length && !memorials.length) return;
+  const parts = [];
+  upcoming.slice(0,3).forEach(u=>{
+    const label = u.diffDays===0 ? 'النهاردة!' : u.diffDays===1 ? 'بكرة' : `بعد ${u.diffDays} يوم`;
+    parts.push(`🎂 ${fullName(u.p)} (${label})`);
+  });
+  memorials.slice(0,3).forEach(u=>{
+    const label = u.diffDays===0 ? 'النهاردة' : u.diffDays===1 ? 'بكرة' : `بعد ${u.diffDays} يوم`;
+    parts.push(`🕯️ ذكرى وفاة ${fullName(u.p)} (${label}) -- ترحّموا عليه`);
+  });
+  document.getElementById('birthday-banner-text').innerHTML = parts.join(' &nbsp;|&nbsp; ');
+  document.getElementById('birthday-banner').style.display = 'block';
+}
+document.getElementById('birthday-banner-close').addEventListener('click',()=>{
+  document.getElementById('birthday-banner').style.display='none';
+  try{ sessionStorage.setItem('birthdayBannerDismissed','1'); }catch(e){}
+});
+
+/* ============================= TREE HEALTH CHECK ============================= */
+function scanTreeHealth(){
+  const issues = [];
+  personList().forEach(p=>{
+    if(p.father_id && !state.people[p.father_id]) issues.push({type:'dangling_father', personId:p.id, label:`${fullName(p)}: الأب المرتبط به لم يعد موجودًا`});
+    if(p.mother_id && !state.people[p.mother_id]) issues.push({type:'dangling_mother', personId:p.id, label:`${fullName(p)}: الأم المرتبطة بها لم تعد موجودة`});
+    if(p.alias_of && !state.people[p.alias_of]) issues.push({type:'dangling_alias', personId:p.id, label:`${fullName(p)}: يشاور على شخص مكرر غير موجود (📌 مكسور)`});
+    if(p.contact_via && !state.people[p.contact_via]) issues.push({type:'dangling_contact', personId:p.id, label:`${fullName(p)}: جهة التواصل البديلة لم تعد موجودة`});
+    // cycle detection: walk up the father/mother chain, a person should never be their own ancestor
+    let cur = p.id, depth=0, seen=new Set();
+    let cyclic=false;
+    while(cur && depth<40){
+      if(seen.has(cur)){ cyclic = true; break; }
+      seen.add(cur);
+      const person = state.people[cur];
+      if(!person) break;
+      cur = person.father_id || person.mother_id;
+      depth++;
+    }
+    if(cyclic) issues.push({type:'cycle', personId:p.id, label:`${fullName(p)}: يوجد حلقة غير منطقية في سلسلة الأجداد (شخص يظهر كجد لنفسه)`});
+
+    // date logic: a child's birth year should come after each parent's birth year
+    function birthYear(person){ if(!person||!person.birth_date) return null; const m=person.birth_date.match(/(\d{4})/); return m? +m[1] : null; }
+    const cy = birthYear(p);
+    if(cy){
+      [p.father_id, p.mother_id].filter(Boolean).forEach(parentId=>{
+        const py = birthYear(state.people[parentId]);
+        if(py && cy<=py) issues.push({type:'date_logic', personId:p.id, label:`${fullName(p)}: سنة ميلاده (${cy}) قبل أو نفس سنة ميلاد ${fullName(state.people[parentId])} (${py}) -- يستحق مراجعة`});
+      });
+    }
+  });
+  marriageList().forEach(m=>{
+    if(!state.people[m.husband_id] || !state.people[m.wife_id]){
+      issues.push({type:'dangling_marriage', marriageId:m.id, label:'يوجد زواج مسجّل لطرف غير موجود'});
+      return;
+    }
+    const husband = state.people[m.husband_id], wife = state.people[m.wife_id];
+    if(husband.gender===wife.gender){
+      issues.push({type:'same_gender_marriage', marriageId:m.id, label:`زواج غير سليم: ${fullName(husband)} و${fullName(wife)} مسجّلين بنفس النوع -- راجع بيانات النوع لأحدهما`});
+    }
+  });
+  return issues;
+}
+function renderHealthReport(){
+  const issues = scanTreeHealth();
+  const body = document.getElementById('health-body');
+  if(!issues.length){ body.innerHTML = '<div class="hint">✅ الشجرة سليمة، لا توجد أي مشاكل مكتشفة.</div>'; return; }
+  body.innerHTML = `<div class="hint">تم اكتشاف ${issues.length} مشكلة:</div>` +
+    issues.map(i=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:13px">${i.label}</div>`).join('');
+}
+document.getElementById('btn-health').addEventListener('click',()=>{ renderHealthReport(); openModal('modal-health'); });
+document.getElementById('btn-health-fix').addEventListener('click',()=>{
+  const issues = scanTreeHealth();
+  const fixable = issues.filter(i=>i.type!=='cycle' && i.type!=='date_logic' && i.type!=='same_gender_marriage'); // these need manual review, not auto-fixed
+  if(!fixable.length){ toast('لا توجد مشاكل قابلة للإصلاح التلقائي'); return; }
+  pushUndo();
+  fixable.forEach(i=>{
+    if(i.type==='dangling_father') state.people[i.personId].father_id = null;
+    if(i.type==='dangling_mother') state.people[i.personId].mother_id = null;
+    if(i.type==='dangling_alias') delete state.people[i.personId];
+    if(i.type==='dangling_contact') state.people[i.personId].contact_via = null;
+    if(i.type==='dangling_marriage') delete state.marriages[i.marriageId];
+  });
+  logAction(`تم إصلاح ${fixable.length} مشكلة عبر فحص سلامة الشجرة`);
+  saveData(); render(); renderHealthReport();
+  toast('تم إصلاح المشاكل القابلة للإصلاح التلقائي');
+});
+
+/* ============================= KINSHIP CALCULATOR ============================= */
+function refreshKinshipSelects(){
+  ['kinship-a','kinship-b'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = personList().filter(p=>!p.alias_of).map(p=>`<option value="${p.id}">${fullName(p)}</option>`).join('');
+  });
+}
+document.getElementById('btn-kinship').addEventListener('click',()=>{
+  refreshKinshipSelects();
+  document.getElementById('kinship-result').style.display='none';
+  openModal('modal-kinship');
+});
+// map of every blood ancestor of pid -> {dist, side}. side is 'father' or 'mother' -- whichever
+// of pid's own two parents the ancestor descends through -- used to tell paternal from maternal
+// uncles/cousins later.
+function ancestorMap(pid){
+  const map = { [pid]: {dist:0, side:'self'} };
+  let frontier = [{id:pid, side:'self'}];
+  let dist = 0;
+  while(frontier.length && dist<15){
+    dist++;
+    const next = [];
+    frontier.forEach(({id,side})=>{
+      const person = state.people[id]; if(!person) return;
+      [['father_id','father'],['mother_id','mother']].forEach(([key,tag])=>{
+        const up = person[key];
+        if(up && !(up in map)){
+          const newSide = side==='self' ? tag : side;
+          map[up] = {dist, side:newSide};
+          next.push({id:up, side:newSide});
+        }
+      });
+    });
+    frontier = next;
+  }
+  return map;
+}
+const ORDINALS = ['','الأولى','الثانية','الثالثة','الرابعة','الخامسة'];
+function describeRelation(aId, bId){
+  if(aId===bId) return 'نفس الشخص';
+  const aMarried = marriagesOf(aId).some(m=>m.husband_id===bId||m.wife_id===bId);
+  if(aMarried) return state.people[aId].gender==='m' ? `${fullName(state.people[bId])} هي زوجة ${fullName(state.people[aId])}` : `${fullName(state.people[bId])} هو زوج ${fullName(state.people[aId])}`;
+
+  const mapA = ancestorMap(aId), mapB = ancestorMap(bId);
+  let common=null, best=Infinity;
+  Object.keys(mapA).forEach(id=>{
+    if(id in mapB){
+      const sum = mapA[id].dist + mapB[id].dist;
+      if(sum<best){ best=sum; common=id; }
+    }
+  });
+  if(common===null) return 'لا توجد صلة قرابة مباشرة عبر الشجرة الحالية (على الأقل من خلال الأب/الأم المسجّلين).';
+
+  const dA = mapA[common].dist, dB = mapB[common].dist;
+  const bGenderWord = (m,f)=> state.people[bId].gender==='m' ? m : f;
+  const sideWord = (side)=> side==='father' ? 'من جهة الأب' : side==='mother' ? 'من جهة الأم' : '';
+
+  if(dA===0){ // common === aId, and dB = B's distance UP to A -> A is an ancestor of B, so B is A's descendant
+    if(dB===1) return bGenderWord('الابن','الابنة');
+    if(dB===2) return bGenderWord('الحفيد','الحفيدة');
+    return bGenderWord('حفيد','حفيدة') + ' (على مسافة ' + dB + ' أجيال للأسفل)';
+  }
+  if(dB===0){ // common === bId, and dA = A's distance UP to B -> B is an ancestor of A
+    if(dA===1) return bGenderWord('الأب','الأم');
+    if(dA===2) return bGenderWord('الجد','الجدة');
+    return bGenderWord('جد', 'جدة') + ' (على مسافة ' + dA + ' أجيال للأعلى)';
+  }
+  const mn = Math.min(dA,dB), mx = Math.max(dA,dB), diff = mx-mn;
+  const side = sideWord(mapA[common].side);
+  if(mn===1 && diff===0){
+    const pa = state.people[aId], pb = state.people[bId];
+    const fullSibling = pa.father_id && pb.father_id && pa.father_id===pb.father_id && pa.mother_id && pb.mother_id && pa.mother_id===pb.mother_id;
+    return bGenderWord('أخ','أخت') + (fullSibling ? ' شقيق/ة' : side? ' ('+side+' فقط)':'');
+  }
+  if(mn===1 && diff>=1){
+    // one of them is exactly a parent's sibling relative to the other -- uncle/aunt vs nephew/niece
+    if(dA<dB){ // A close to common ancestor, B further down -> B is A's nephew/niece (or further)
+      const prefix = diff===1? '' : 'حفيد '.repeat(diff-1);
+      return prefix + bGenderWord('ابن الأخ/الأخت','بنت الأخ/الأخت');
+    } else { // B closer -> B is A's uncle/aunt (or further "great-")
+      const prefix = diff===1? '' : ('جد '.repeat(diff-1));
+      return prefix + bGenderWord('العم/الخال','العمة/الخالة') + (side? ' ('+side+')':'');
+    }
+  }
+  if(mn>=2){
+    const degree = Math.min(mn-1, ORDINALS.length-1);
+    const removedNote = diff>0 ? ` (مع فارق ${diff} جيل)` : '';
+    return bGenderWord('ابن عم/خال','بنت عم/خال') + ' من الدرجة ' + (ORDINALS[degree]||degree) + removedNote + (side? ' ('+side+')':'');
+  }
+  return `قرابة بعيدة عبر جد مشترك (على مسافة ${dA} و${dB} جيل من كل طرف)`;
+}
+document.getElementById('btn-calc-kinship').addEventListener('click',()=>{
+  const a = document.getElementById('kinship-a').value, b = document.getElementById('kinship-b').value;
+  if(!a||!b||a===b){ toast('اختار شخصين مختلفين'); return; }
+  const desc = describeRelation(a,b);
+  const box = document.getElementById('kinship-result');
+  box.style.display='block';
+  box.innerHTML = `<b>${fullName(state.people[b])}</b> بالنسبة لـ <b>${fullName(state.people[a])}</b>: ${desc}`;
+});
+
+/* ============================= DIRECT LINEAGE HIGHLIGHT ============================= */
+let highlightedLineageId = null;
+function toggleLineageHighlight(pid){
+  highlightedLineageId = (highlightedLineageId===pid) ? null : pid;
+  if(highlightedLineageId) highlightedDescendantsId = null; // the two highlight modes don't mix
+  applyLineageHighlight();
+  applyDescendantHighlight();
+}
+function applyLineageHighlight(){
+  const oldOverlay = document.getElementById('lineage-overlay');
+  if(oldOverlay) oldOverlay.remove();
+
+  if(!highlightedLineageId){
+    if(!highlightedDescendantsId) document.querySelectorAll('.node-group').forEach(g=>g.classList.remove('dim'));
+    return;
+  }
+  // walk the direct blood line upward -- one parent per generation (father, else mother) --
+  // rather than the full ancestor map, so the highlight reads as a single traceable spine.
+  const chain = [highlightedLineageId];
+  let cur = highlightedLineageId;
+  const seen = new Set([cur]);
+  while(true){
+    const person = state.people[cur];
+    if(!person) break;
+    const next = person.father_id || person.mother_id;
+    if(!next || !state.people[next] || seen.has(next)) break;
+    chain.push(next); seen.add(next); cur = next;
+  }
+  const lineageSet = new Set(chain);
+  document.querySelectorAll('.node-group').forEach(g=>{
+    const id = g.getAttribute('data-id');
+    g.classList.toggle('dim', !lineageSet.has(id));
+  });
+
+  if(chain.length>1 && svg){
+    const overlay = el('g', {id:'lineage-overlay'}, svg);
+    for(let i=0;i<chain.length-1;i++){
+      const a = lastPositions[chain[i]], b = lastPositions[chain[i+1]];
+      if(!a||!b) continue;
+      const midY = (a.y+b.y)/2;
+      const d = `M${a.x},${a.y} V${midY} H${b.x} V${b.y}`;
+      el('path',{d,class:'lineage-flow',fill:'none'}, overlay);
+    }
+  }
+}
+
+/* ============================= DESCENDANT HIGHLIGHT (per person, downward only) ============================= */
+let highlightedDescendantsId = null;
+function toggleDescendantHighlight(pid){
+  highlightedDescendantsId = (highlightedDescendantsId===pid) ? null : pid;
+  if(highlightedDescendantsId) highlightedLineageId = null; // the two highlight modes don't mix
+  applyLineageHighlight();
+  applyDescendantHighlight();
+}
+function applyDescendantHighlight(){
+  document.querySelectorAll('.node-rect').forEach(r=>r.classList.remove('descendant-highlight'));
+  if(!highlightedDescendantsId){
+    if(!highlightedLineageId) document.querySelectorAll('.node-group').forEach(g=>g.classList.remove('dim'));
+    return;
+  }
+  const ids = collectSubtreeIds(highlightedDescendantsId);
+  document.querySelectorAll('.node-group').forEach(g=>{
+    const id = g.getAttribute('data-id');
+    g.classList.toggle('dim', !ids.has(id));
+    const rect = g.querySelector('rect.node-rect');
+    if(rect) rect.classList.toggle('descendant-highlight', ids.has(id));
+  });
+}
+
+/* ============================= READ-ONLY VIEW ============================= */
+function checkHash(){
+  const h = location.hash;
+  if(h.startsWith('#eventinvite=')){
+    try{
+      const data = JSON.parse(decodeURIComponent(escape(atob(h.slice(13)))));
+      showEventInviteView(data);
+      return true;
+    }catch(e){ /* ignore */ }
+  }
+  if(h.startsWith('#edit=')){
+    try{
+      const data = JSON.parse(decodeURIComponent(escape(atob(h.slice(6)))));
+      if(!data.settings) data.settings = { whatsapp_enabled: true };
+      history.replaceState(null,'',location.pathname);
+      promptReceivedInfo(data);
+      return true;
+    }catch(e){ /* ignore */ }
+  }
+  if(h.startsWith('#view=')){
+    try{
+      const data = JSON.parse(decodeURIComponent(escape(atob(h.slice(6)))));
+      if(!data.settings) data.settings = { whatsapp_enabled: true };
+      state = data; readOnly = true;
+      document.getElementById('readonly-banner').style.display='block';
+      document.querySelectorAll('#topbar .tb-btn').forEach(b=>b.style.display='none');
+      render();
+      centerTree();
+      document.getElementById('btn-clone-editable').onclick=async ()=>{
+        if(!confirm('هيتم تسجيل بيانات المُرسل وحفظ هذه الشجرة كصفحة مستقلة قابلة للتعديل على جهازك. تكمل؟')) return;
+        readOnly = false;
+        history.replaceState(null,'',location.pathname);
+        document.getElementById('readonly-banner').style.display='none';
+        document.querySelectorAll('#topbar .tb-btn').forEach(b=>b.style.display='');
+        promptReceivedInfo(data);
+      };
+      return true;
+    }catch(e){ /* ignore */ }
+  }
+  return false;
+}
+
+/* ============================= INIT ============================= */
+window.addEventListener('keydown',(e)=>{
+  if((e.ctrlKey||e.metaKey) && e.key==='z'){ e.preventDefault(); doUndo(); return; }
+  if((e.ctrlKey||e.metaKey) && (e.key==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); doRedo(); return; }
+  const typing = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement && document.activeElement.tagName);
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='f'){
+    e.preventDefault();
+    document.getElementById('search-input').focus();
+    return;
+  }
+  if(e.key==='Escape'){
+    const openOverlay = document.querySelector('.modal-overlay.show');
+    if(openOverlay) openOverlay.classList.remove('show');
+    else { closeRadialMenu(); moreMenu.style.display='none'; searchResults.style.display='none'; }
+    return;
+  }
+  if(!typing && (e.key==='+'||e.key==='=')){ camera.scale=Math.min(2.2,camera.scale+0.15); applyCamera(); }
+  if(!typing && e.key==='-'){ camera.scale=Math.max(0.25,camera.scale-0.15); applyCamera(); }
+});
+document.getElementById('btn-undo').addEventListener('click', doUndo);
+document.getElementById('btn-redo').addEventListener('click', doRedo);
+
+if(!checkHash()){
+  camera = {x:40,y:20,scale:1};
+  loadData();
+}
+})();
+</script>
+</body>
+</html>
