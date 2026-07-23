@@ -33,20 +33,22 @@
 
   /* ===== Topbar ===== */
   #topbar{
-    display:flex;align-items:center;gap:8px;padding:10px 16px;
+    display:flex;align-items:center;gap:8px;padding:8px 16px;
     background:linear-gradient(180deg,var(--parchment-deep),var(--parchment));
-    border-bottom:2px solid var(--line);z-index:30;flex-wrap:wrap;
+    border-bottom:2px solid var(--line);z-index:30;
+    flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
+  #topbar::-webkit-scrollbar{ height:4px; }
+  #topbar .tb-btn{ flex-shrink:0; }
+  #topbar .tb-spacer{ flex-shrink:0; min-width:12px; }
   @media (max-width: 700px){
-    #topbar{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:8px 10px; gap:6px; }
-    #topbar::-webkit-scrollbar{ height:4px; }
+    #topbar{ padding:8px 10px; gap:6px; }
     #topbar h1{ font-size:19px; margin-left:4px; flex-shrink:0; }
-    #topbar .tb-btn{ flex-shrink:0; padding:6px 10px; font-size:12.5px; }
-    #topbar .tb-spacer{ display:none; }
+    #topbar .tb-btn{ padding:6px 10px; font-size:12.5px; }
     #topbar #search-input{ width:100px !important; flex-shrink:0; }
     #topbar .tb-stat{ flex-shrink:0; white-space:nowrap; }
   }
-  #topbar h1{font-family:'Markazi Text',serif;font-size:26px;font-weight:700;margin:0 10px 0 0;color:var(--ink);letter-spacing:.5px;}
+  #topbar h1{font-family:'Markazi Text',serif;font-size:26px;font-weight:700;margin:0 10px 0 0;color:var(--ink);letter-spacing:.5px;flex-shrink:0;}
   .tb-btn{
     display:flex;align-items:center;gap:6px;background:var(--card-bg);border:1.5px solid var(--line);
     color:var(--ink);padding:7px 12px;border-radius:9px;font-family:'Cairo';font-size:13.5px;font-weight:600;
@@ -59,10 +61,10 @@
   .tb-stat{font-size:12.5px;color:var(--ink-soft);background:var(--gold-soft);padding:6px 12px;border-radius:20px;font-weight:700;}
 
   /* ===== Canvas ===== */
-  #canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;background:
+  #canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;background:
       radial-gradient(circle at 1px 1px, rgba(140,130,100,0.18) 1px, transparent 0) 0 0/26px 26px, var(--parchment);}
   #canvas-wrap.grabbing{cursor:grabbing;}
-  svg#tree-svg{position:absolute;top:0;left:0;}
+  svg#tree-svg{position:absolute;top:0;left:0;user-select:none;-webkit-user-select:none;}
 
   .node-rect{stroke-width:2.5;cursor:pointer;filter:drop-shadow(0 3px 5px rgba(32,48,46,.18));transition:filter .15s;}
   @keyframes search-pulse{
@@ -77,6 +79,8 @@
     filter: drop-shadow(0 0 4px rgba(139,20,32,.6));
   }
   .node-rect.descendant-highlight{ stroke:#2E7D46 !important; stroke-width:4.5; filter: drop-shadow(0 0 6px rgba(46,125,70,.6)); }
+  @keyframes onboard-in{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:translateY(0); } }
+  .onboard-step{ opacity:0; animation: onboard-in .5s ease forwards; }
   .node-rect:hover{filter:drop-shadow(0 5px 10px rgba(32,48,46,.3));}
   .node-name{font-family:'Cairo';font-weight:700;pointer-events:none;user-select:none;}
   .node-sub{font-family:'Cairo';font-weight:500;pointer-events:none;user-select:none;}
@@ -182,14 +186,9 @@
   <div id="topbar">
     <h1 class="brand-font">🌳 شجرة العائلة</h1>
     <button class="tb-btn" id="btn-add-root">➕ إضافة شخص</button>
-    <button class="tb-btn" id="btn-edit-toolbar" disabled>✏️ تعديل</button>
-    <button class="tb-btn danger" id="btn-del-toolbar" disabled>🗑️ حذف</button>
     <button class="tb-btn" id="btn-undo">↩️ تراجع</button>
-    <button class="tb-btn" id="btn-redo">↪️ إعادة</button>
-    <button class="tb-btn" id="btn-center">🎯 توسيط</button>
     <button class="tb-btn" id="btn-share">🔗 مشاركة</button>
     <button class="tb-btn" id="btn-events">📅 الأحداث</button>
-    <div class="tb-stat" id="doc-stat">التوثيق: 0%</div>
     <div class="tb-spacer"></div>
     <div class="field" style="margin:0;position:relative">
       <input type="text" id="search-input" placeholder="🔎 بحث بالاسم..." style="padding:7px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:Cairo;font-size:13px;width:140px">
@@ -197,32 +196,33 @@
     </div>
     <div style="position:relative">
       <button class="tb-btn" id="btn-tree-switcher">📄 الصفحة</button>
-      <div id="tree-switcher-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:8px;width:240px;max-height:60vh;overflow-y:auto;flex-direction:column;gap:4px">
+      <div id="tree-switcher-menu" style="display:none;position:fixed;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:200;padding:8px;width:240px;max-height:60vh;overflow-y:auto;flex-direction:column;gap:4px">
         <div id="tree-switcher-list" style="display:flex;flex-direction:column;gap:4px"></div>
       </div>
     </div>
     <div style="position:relative">
       <button class="tb-btn" id="btn-more">☰ المزيد</button>
-      <div id="tb-more-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:auto;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:8px;width:220px;max-height:70vh;overflow-y:auto;flex-direction:column;gap:4px">
-        <button class="tb-btn" id="btn-kinship" style="width:100%">🧬 صلة القرابة</button>
+      <div id="tb-more-menu" style="display:none;position:fixed;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:200;padding:8px;width:220px;max-height:70vh;overflow-y:auto;flex-direction:column;gap:4px">
+        <button class="tb-btn" id="btn-stats" style="width:100%">📊 إحصائيات</button>
         <button class="tb-btn" id="btn-backup" style="width:100%">💾 نسخة احتياطية</button>
-        <button class="tb-btn" id="btn-export" style="width:100%">🖼️ تصدير/طباعة</button>
-        <button class="tb-btn" id="btn-settings" style="width:100%">⚙️ الإعدادات</button>
+        <button class="tb-btn" id="btn-kinship" style="width:100%">🧬 صلة القرابة</button>
+        <button class="tb-btn" id="btn-health" style="width:100%">🩺 فحص الشجرة</button>
         <button class="tb-btn" id="btn-more-expand" style="width:100%">⋯ المزيد من الخيارات</button>
         <div id="tb-more-rest" style="display:none;flex-direction:column;gap:4px">
+          <button class="tb-btn" id="btn-export" style="width:100%">🖼️ تصدير/طباعة</button>
+          <button class="tb-btn" id="btn-settings" style="width:100%">⚙️ الإعدادات</button>
           <button class="tb-btn" id="btn-transfer" style="width:100%">👑 نقل الإدارة</button>
           <button class="tb-btn" id="btn-secret" style="width:100%">🔑 المفتاح السري</button>
           <button class="tb-btn" id="btn-merge" style="width:100%">🌿 دمج الشجرة</button>
-          <button class="tb-btn" id="btn-health" style="width:100%">🩺 فحص الشجرة</button>
           <button class="tb-btn" id="btn-activity-log" style="width:100%">📜 سجل التغييرات</button>
           <button class="tb-btn" id="btn-restore" style="width:100%">📂 استعادة</button>
           <input type="file" id="restore-file" accept=".json" style="display:none">
-          <button class="tb-btn" id="btn-stats" style="width:100%">📊 إحصائيات</button>
           <button class="tb-btn" id="btn-gedcom" style="width:100%">📜 تصدير GEDCOM</button>
           <button class="tb-btn" id="btn-family-book" style="width:100%">📖 الكتاب العائلي (PDF)</button>
           <button class="tb-btn" id="btn-checklist" style="width:100%">❓ إيه الناقص؟</button>
           <button class="tb-btn" id="btn-received-events" style="width:100%">📥 دعوات استلمتها</button>
           <button class="tb-btn" id="btn-received-copies" style="width:100%">📥 نسخ مستلمة</button>
+          <button class="tb-btn" id="btn-duplicates-log" style="width:100%">🔁 سجل التكرارات</button>
           <button class="tb-btn" id="btn-ultimate-ancestor" style="width:100%">🏛️ الجد الأعلى (اسم نهائي)</button>
         </div>
       </div>
@@ -231,16 +231,16 @@
 
   <div id="canvas-wrap">
     <svg id="tree-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div id="zoom-controls">
-      <button id="zoom-in">+</button>
-      <button id="zoom-reset">⟳</button>
-      <button id="zoom-out">−</button>
-    </div>
     <div id="legend">
-      <div><span class="lg-swatch" style="background:var(--male)"></span><b>ذكر</b></div>
-      <div><span class="lg-swatch" style="background:var(--female)"></span><b>أنثى</b></div>
-      <div><span class="lg-swatch" style="background:var(--grey)"></span><b>مجهول</b></div>
-      <div>⟍ خط مائل = متوفى &nbsp; 📌 = تكرار الشخص</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div><span class="lg-swatch" style="background:var(--male)"></span><b>ذكر</b> &nbsp; <span class="lg-swatch" style="background:var(--female)"></span><b>أنثى</b> &nbsp; <span class="lg-swatch" style="background:var(--grey)"></span><b>مجهول</b></div>
+        <div id="zoom-controls" style="position:static;display:flex;flex-direction:row;gap:4px">
+          <button id="zoom-in" style="width:26px;height:26px;font-size:14px">+</button>
+          <button id="zoom-reset" style="width:26px;height:26px;font-size:14px">⟳</button>
+          <button id="zoom-out" style="width:26px;height:26px;font-size:14px">−</button>
+        </div>
+      </div>
+      <div>◣ = متوفى &nbsp; 🔁 = تكرار الشخص</div>
       <div>— خط متصل = مؤكد &nbsp; ┄ خط متقطع = غير مؤكد</div>
     </div>
   </div>
@@ -313,9 +313,21 @@
             <div class="field"><label>السكن 2</label><input type="text" id="f-addr2"></div>
           </div>
           <div class="field"><label>البريد الإلكتروني</label><input type="text" id="f-email"></div>
-          <div class="row2">
-            <div class="field"><label>تاريخ الميلاد</label><input type="text" id="f-birthdate" placeholder="مثال: 1990"></div>
-            <div class="field"><label>تاريخ الوفاة</label><input type="text" id="f-deathdate" placeholder="مثال: 2020"></div>
+          <div class="field">
+            <label>تاريخ الميلاد (اختياري -- السنة تكفي لو مش عارف اليوم والشهر)</label>
+            <div class="row2" style="gap:6px">
+              <input type="number" id="f-birth-day" placeholder="يوم" min="1" max="31" style="text-align:center">
+              <input type="number" id="f-birth-month" placeholder="شهر" min="1" max="12" style="text-align:center">
+              <input type="number" id="f-birth-year" placeholder="سنة *" min="1" max="2100" style="text-align:center">
+            </div>
+          </div>
+          <div class="field">
+            <label>تاريخ الوفاة (اختياري -- السنة تكفي لو مش عارف اليوم والشهر)</label>
+            <div class="row2" style="gap:6px">
+              <input type="number" id="f-death-day" placeholder="يوم" min="1" max="31" style="text-align:center">
+              <input type="number" id="f-death-month" placeholder="شهر" min="1" max="12" style="text-align:center">
+              <input type="number" id="f-death-year" placeholder="سنة *" min="1" max="2100" style="text-align:center">
+            </div>
           </div>
           <div class="field"><label>المهنة</label><input type="text" id="f-job"></div>
         </div>
@@ -424,12 +436,12 @@
 <!-- PIN lock overlay -->
 <div class="modal-overlay" id="modal-onboarding">
   <div class="modal">
-    <div class="modal-head"><h2>🌳 أهلاً بيك!</h2></div>
+    <div class="modal-head"><h2>🌳 أهلاً بك!</h2></div>
     <div class="modal-body">
       <div class="hint" style="font-size:14px;line-height:2.1">
-        <div><b>1️⃣ أضف شخص جديد</b> -- زرار "➕ إضافة شخص" (ابدأ بأقدم شخص ذكر تعرفه).</div>
-        <div><b>2️⃣ افتح قائمته</b> -- دوس على صندوقه، واختار "📌 إضافة شخص ذو علاقة".</div>
-        <div><b>3️⃣ حدد العلاقة والاسم واحفظ</b> -- اختار نوع العلاقة (زوجة/ابن/ابنة...)، اكتب الاسم، ودوس حفظ. وكمّل بنفس الطريقة.</div>
+        <div class="onboard-step" style="animation-delay:.15s"><b>1️⃣ أضف شخص جديد</b> -- زرار "➕ إضافة شخص" (ابدأ بأقدم شخص ذكر تعرفه).</div>
+        <div class="onboard-step" style="animation-delay:.65s"><b>2️⃣ افتح قائمته</b> -- دوس على صندوقه، واختار "📌 إضافة شخص ذو علاقة".</div>
+        <div class="onboard-step" style="animation-delay:1.15s"><b>3️⃣ حدد العلاقة والاسم واحفظ</b> -- اختار نوع العلاقة (زوجة/ابن/ابنة...)، اكتب الاسم، ودوس حفظ. وكمّل بنفس الطريقة.</div>
       </div>
     </div>
     <div class="modal-foot"><button class="btn btn-primary" id="btn-onboarding-done">فهمت، يلا نبدأ 🚀</button></div>
@@ -444,6 +456,13 @@
 </div>
 
 <div id="family-book-container" style="display:none"></div>
+
+<button id="btn-feedback-toggle" title="إبلاغ / اقتراح" style="position:fixed;bottom:20px;left:20px;width:44px;height:44px;border-radius:50%;background:var(--ink);color:#fff;border:none;font-size:19px;cursor:pointer;box-shadow:var(--shadow);z-index:150">💬</button>
+<div id="feedback-panel" style="display:none;position:fixed;bottom:76px;left:20px;width:260px;background:var(--card-bg);border:1.5px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;z-index:150;flex-direction:column;gap:8px">
+  <div style="font-weight:800;font-size:14px">تواصل معانا</div>
+  <button class="btn" id="btn-report-issue" style="width:100%;text-align:right">🐞 الإبلاغ عن مشكلة</button>
+  <button class="btn" id="btn-suggest-feature" style="width:100%;text-align:right">💡 اقتراح ميزة</button>
+</div>
 
 <!-- Kinship calculator -->
 <div class="modal-overlay" id="modal-kinship">
@@ -558,6 +577,30 @@
   <div class="modal" style="max-width:520px">
     <div class="modal-head"><h2>📥 نسخ مستلمة</h2><button class="modal-close" data-close>✕</button></div>
     <div class="modal-body" id="received-copies-body"></div>
+    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
+  </div>
+</div>
+
+<!-- Mark a person as a duplicate of someone else already in the tree -->
+<div class="modal-overlay" id="modal-mark-duplicate">
+  <div class="modal">
+    <div class="modal-head"><h2>🔁 تسجيل تكرار</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint">لو "<span id="dup-person-name"></span>" هو نفس شخص تاني موجود بالفعل في الشجرة (زي في حالة تزاوج الأقارب)، اختاره هنا.</div>
+      <div class="field"><label>الشخص الأصلي</label><select id="dup-target"></select></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>إلغاء</button>
+      <button class="btn btn-primary" id="btn-save-duplicate">حفظ التكرار</button>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicates log -->
+<div class="modal-overlay" id="modal-duplicates-log">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2>🔁 سجل التكرارات</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body" id="duplicates-log-body"></div>
     <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
   </div>
 </div>
@@ -726,6 +769,49 @@ document.getElementById('btn-received-copies').addEventListener('click',()=>{
   openModal('modal-received-copies');
 });
 
+/* ============================= DUPLICATE (ALIAS) MARKING ============================= */
+function openMarkDuplicate(pid){
+  const p = state.people[pid];
+  document.getElementById('dup-person-name').textContent = fullName(p);
+  const sel = document.getElementById('dup-target');
+  sel.innerHTML = personList().filter(x=>!x.alias_of && x.id!==pid).map(x=>`<option value="${x.id}">${fullName(x)}</option>`).join('');
+  document.getElementById('btn-save-duplicate').onclick=()=>{
+    const targetId = sel.value;
+    if(!targetId){ toast('اختار الشخص الأصلي'); return; }
+    pushUndo();
+    p.alias_of = targetId;
+    logAction(`تم تسجيل ${fullName(p)} كتكرار لـ${fullName(state.people[targetId])}`);
+    saveData(); render(); closeAllModals();
+    toast('تم حفظ التكرار');
+  };
+  openModal('modal-mark-duplicate');
+}
+document.getElementById('btn-duplicates-log').addEventListener('click',()=>{
+  const pairs = personList().filter(p=>p.alias_of && state.people[p.alias_of])
+    .sort((a,b)=>(b._order||0)-(a._order||0));
+  const body = document.getElementById('duplicates-log-body');
+  if(!pairs.length){ body.innerHTML = '<div class="hint">لا توجد تكرارات مسجّلة حاليًا.</div>'; }
+  else {
+    body.innerHTML = pairs.map(p=>{
+      const original = state.people[p.alias_of];
+      return `<div class="hint" style="margin-bottom:8px">
+        <div><b>${fullName(p)}</b></div>
+        <div style="color:var(--ink-soft);font-size:12.5px;margin:2px 0">هو نفس</div>
+        <div><b>${fullName(original)}</b></div>
+        <button class="btn" style="margin-top:6px;padding:4px 10px;font-size:12px" data-focus-dup="${p.id}">🔎 اعرض الموضعين</button>
+      </div>`;
+    }).join('');
+    body.querySelectorAll('[data-focus-dup]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        closeAllModals();
+        const id = btn.getAttribute('data-focus-dup');
+        focusOn(id);
+      });
+    });
+  }
+  openModal('modal-duplicates-log');
+});
+
 async function loadData(){
   try{
     const raw = localStorage.getItem(storageKeyFor(currentTreeId));
@@ -759,6 +845,27 @@ document.getElementById('btn-onboarding-done').addEventListener('click',()=>{
   closeAllModals();
   try{ localStorage.setItem('onboarding-shown','1'); }catch(e){}
 });
+
+/* ============================= FEEDBACK PANEL ============================= */
+const feedbackPanel = document.getElementById('feedback-panel');
+document.getElementById('btn-feedback-toggle').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  feedbackPanel.style.display = feedbackPanel.style.display==='flex' ? 'none' : 'flex';
+});
+document.addEventListener('click',(e)=>{
+  if(feedbackPanel.style.display==='flex' && !e.target.closest('#feedback-panel') && e.target.id!=='btn-feedback-toggle'){
+    feedbackPanel.style.display='none';
+  }
+});
+document.getElementById('btn-report-issue').addEventListener('click',()=>{
+  window.location.href = 'mailto:ezzat.alnajm@gmail.com?subject=' + encodeURIComponent('مشكلة في تطبيق شجرة العائلة') + '&body=' + encodeURIComponent('اكتب هنا وصف المشكلة اللي حصلت:\n\n');
+  feedbackPanel.style.display='none';
+});
+document.getElementById('btn-suggest-feature').addEventListener('click',()=>{
+  window.location.href = 'mailto:ezzat.alnajm@gmail.com?subject=' + encodeURIComponent('اقتراح ميزة لتطبيق شجرة العائلة') + '&body=' + encodeURIComponent('اكتب هنا اقتراحك:\n\n');
+  feedbackPanel.style.display='none';
+});
+
 function unlockAfterPin(){
   render();
   centerTree();
@@ -870,6 +977,61 @@ function shareOtherTree(treeId){
   document.getElementById('tree-switcher-menu').style.display='none';
   openModal('modal-share');
 }
+// Copies a married female + her husband(s), her children (and their own spouses), and her own
+// father/mother (if already recorded) out of the CURRENT tree's data, with brand-new ids, ready
+// to drop into a freshly created marriage-corner page. Every copied person is reset to
+// married_in:false so the corner -- whose whole point is to allow what the main tree
+// restricts -- lets the family be extended freely from any of them.
+function buildCornerSeed(pid){
+  const srcPeople = state.people, srcMarriages = state.marriages;
+  const include = new Set([pid]);
+  const husbandIds = new Set();
+  marriagesOf(pid).forEach(m=>{ const spouse = m.husband_id===pid? m.wife_id : m.husband_id; include.add(spouse); husbandIds.add(spouse); });
+  const childIds = new Set();
+  const inlawIds = new Set();
+  Object.values(srcPeople).filter(c=>c.father_id===pid||c.mother_id===pid).forEach(c=>{
+    include.add(c.id); childIds.add(c.id);
+    Object.values(srcMarriages).forEach(m=>{
+      if(m.husband_id===c.id||m.wife_id===c.id){
+        const spouse = m.husband_id===c.id? m.wife_id : m.husband_id;
+        include.add(spouse); inlawIds.add(spouse);
+      }
+    });
+  });
+  const self = srcPeople[pid];
+  if(self.father_id && srcPeople[self.father_id]) include.add(self.father_id);
+  if(self.mother_id && srcPeople[self.mother_id]) include.add(self.mother_id);
+
+  const idMap = {};
+  include.forEach(oldId=>{ if(srcPeople[oldId]) idMap[oldId] = uid('p'); });
+  const people = {};
+  include.forEach(oldId=>{
+    const op = srcPeople[oldId];
+    if(!op) return;
+    const newId = idMap[oldId];
+    // Only her own husband(s) and her children's in-law spouses stay "married in" (blocked
+    // from having their own parents added here, just like the main tree) -- she herself, her
+    // children, and her own parents are all treated as blood members of THIS page, free to
+    // extend the family further in any direction.
+    const marriedIn = husbandIds.has(oldId) || inlawIds.has(oldId);
+    people[newId] = { ...op, id:newId,
+      father_id: op.father_id && idMap[op.father_id] ? idMap[op.father_id] : null,
+      mother_id: op.mother_id && idMap[op.mother_id] ? idMap[op.mother_id] : null,
+      married_in: marriedIn, is_unknown: op.is_unknown && oldId!==pid, alias_of:null, linked_tree_id:null,
+      events:[], external_children:[],
+      phone1:'', phone2:'', addr1:'', addr2:'', email:'', photo:null, whatsapp:'', contact_enabled:false, contact_via:null,
+      _order: op._order || Date.now() };
+  });
+  const marriages = {};
+  Object.values(srcMarriages).forEach(m=>{
+    if(idMap[m.husband_id] && idMap[m.wife_id]){
+      const nid = uid('m');
+      marriages[nid] = { ...m, id:nid, husband_id:idMap[m.husband_id], wife_id:idMap[m.wife_id] };
+    }
+  });
+  return { people, marriages, rootId: idMap[pid] };
+}
+
 async function openOrCreateSubtree(pid, type){
   type = type || 'subtree';
   const p = state.people[pid];
@@ -881,26 +1043,32 @@ async function openOrCreateSubtree(pid, type){
   }
   const isCorner = type==='marriage-corner';
   const msg = isCorner
-    ? `هيتعمل "ركن القرابة والمصاهرة" الخاص بـ"${fullName(p)}" كصفحة مستقلة تمامًا. هنا بس (بخلاف الشجرة الرئيسية) يُسمح بإضافة أبوها وأمها وإخوتها. تكمل؟`
+    ? `هيتعمل "ركن القرابة والمصاهرة" الخاص بـ"${fullName(p)}" كصفحة مستقلة، وهنقلّك تلقائيًا زوجها وأبناءها وأزواجهم وأبوها وأمها (لو موجودين). هنا بس (بخلاف الشجرة الرئيسية) يُسمح بإضافة أبوها وأمها وإخوتها. تكمل؟`
     : `هيتعمل شجرة مستقلة تمامًا باسم "${fullName(p)}" -- منفصلة تمامًا عن الشجرة الرئيسية ببياناتها الخاصة، ومحفوظة بشكل مستقل، ودمج مستقل بعيدًا عن الشجرة الأولى. تكمل؟`;
   if(!confirm(msg)) return;
   const newTreeId = uid('tree');
   // capture her position in the CURRENT (main) tree before switching away, to sort corners by recency later
   const sortKey = (computeGenerations()[pid]||0)*1e13 + (p._order||0);
+  const seed = isCorner ? buildCornerSeed(pid) : null;
   const registry = loadRegistry();
-  registry.push({id:newTreeId, label: fullName(p) + (isCorner? ' (ركن قرابة ومصاهرة)':' (شجرة مستقلة)'), type, sortKey});
+  registry.push({id:newTreeId, label: isCorner? ('مصاهرة '+p.first_name) : (fullName(p)+' (شجرة مستقلة)'), type, sortKey});
   saveRegistry(registry);
   pushUndo();
   p.linked_tree_id = newTreeId;
   await saveData(); // persist the link on the main tree before switching away from it
   await switchToTree(newTreeId);
-  const seedId = uid('p');
-  state.people[seedId] = { id:seedId, first_name:p.first_name, last_name:p.last_name||'', gender:p.gender,
-    deceased:p.deceased||false, death_confirmed:false, father_id:null, mother_id:null, whatsapp:'',
-    is_unknown:false, married_in:false, confirmed_as_child:false, alias_of:null, _order:Date.now(), events:[] };
+  if(isCorner){
+    state.people = seed.people;
+    state.marriages = seed.marriages;
+  } else {
+    const seedId = uid('p');
+    state.people[seedId] = { id:seedId, first_name:p.first_name, last_name:p.last_name||'', gender:p.gender,
+      deceased:p.deceased||false, death_confirmed:false, father_id:null, mother_id:null, whatsapp:'',
+      is_unknown:false, married_in:false, confirmed_as_child:false, alias_of:null, _order:Date.now(), events:[] };
+  }
   if(isCorner) state.corner_type = 'marriage-corner'; // used to gate the name-completeness nudge and share restrictions
   await saveData(); render(); centerTree();
-  toast(isCorner ? 'اتعمل ركن القرابة والمصاهرة -- ابدأ بإضافة أبوها وأمها' : 'اتعملت الشجرة المستقلة -- ابدأ تبنيها زي أي شجرة عادية');
+  toast(isCorner ? 'اتعمل ركن القرابة والمصاهرة مع بياناتها المنقولة -- كمّل بإضافة أبوها وأمها' : 'اتعملت الشجرة المستقلة -- ابدأ تبنيها زي أي شجرة عادية');
 }
 function pushUndo(){
   undoStack.push(JSON.stringify(state));
@@ -937,6 +1105,17 @@ function logAction(text){
 /* ============================= HELPERS ============================= */
 function fullName(p){
   if(!p) return 'مجهول';
+  // An auto-generated "unknown mother" placeholder traditionally goes by her son's name
+  // (kunya-style, e.g. "أم أحمد") once she has children -- prefer a son, fall back to a
+  // daughter, and only fall back to the bare placeholder if she has neither yet. If the user
+  // has manually renamed her (first_name no longer the literal placeholder), this no longer
+  // applies -- that's a real name they chose.
+  if(p.is_unknown && p.gender==='f' && p.first_name==='مجهولة'){
+    const kids = Object.values(state.people).filter(c=>c.mother_id===p.id && !c.alias_of);
+    const son = kids.find(c=>c.gender==='m');
+    const chosen = son || kids[0];
+    if(chosen) return 'أم ' + fullName(chosen);
+  }
   if(p.first_name && p.last_name) return p.first_name+' '+p.last_name;
   // No explicit surname given: auto-compose "first-name + father's-first-name" from the tree
   // itself, so two people sharing a first name (common in real families) stay distinguishable
@@ -978,7 +1157,13 @@ function toast(msg){
   clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200);
 }
 function closeAllModals(){ document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show')); }
-function openModal(id){ closeAllModals(); document.getElementById(id).classList.add('show'); }
+function openModal(id){
+  closeAllModals();
+  const el = document.getElementById(id);
+  el.classList.add('show');
+  const body = el.querySelector('.modal-body');
+  if(body) body.scrollTop = 0;
+}
 
 /* ============================= STATS ============================= */
 function computeStats(){
@@ -1002,8 +1187,8 @@ function computeStats(){
   return {total, male, female, inlaws, deceased, marriages: marriages.length, children: people.filter(p=>p.father_id||p.mother_id).length, pct, disputes: mergeState? mergeState.diffs.filter(d=>d.status==='conflict').length : 0};
 }
 function refreshStatBar(){
-  const s = computeStats();
-  document.getElementById('doc-stat').textContent = `الأشخاص: ${s.total} · التوثيق: ${s.pct}%` + (s.disputes? ` · نقاط خلاف: ${s.disputes}`:'');
+  // the top-bar people/documentation stat was removed to declutter the toolbar --
+  // this info now only lives in the "📊 إحصائيات" modal
 }
 
 /* ============================= LAYOUT ============================= */
@@ -1129,7 +1314,13 @@ function layoutTree(){
   function placeUnit(unit, start){
     const center = start + unit.width/2;
     const rowStart = center - unit.ownWidth/2;
-    const order = [unit.pid, ...unit.spouseIds];
+    // Multiple spouses are alternated left/right of the blood-line person instead of all
+    // stacked on one side -- with more than one wife (or husband), each one's children hang
+    // from a different point along the row, and piling every spouse on the same side made
+    // those children's connector lines cross each other more than necessary.
+    const leftSide = [], rightSide = [];
+    unit.spouseIds.forEach((sid,i)=>{ (i%2===0 ? rightSide : leftSide).push(sid); });
+    const order = [...leftSide.slice().reverse(), unit.pid, ...rightSide];
     order.forEach((id,i)=>{
       const person = state.people[id];
       const g = gens[id]!==undefined? gens[id] : 0;
@@ -1137,7 +1328,7 @@ function layoutTree(){
       // spouse who married INTO the family (or an auto-created "unknown" spouse) sits one
       // small step lower than the blood-line person -- never affects generation/spacing math,
       // purely a pixel-level visual cue drawn via a slanted marriage line.
-      if(i>0 && (person.married_in || person.is_unknown)) y += INLAW_STEP;
+      if(id!==unit.pid && (person.married_in || person.is_unknown)) y += INLAW_STEP;
       positions[id] = { x: rowStart + i*(NODE_W+SPOUSE_GAP) + NODE_W/2, y };
     });
     if(unit.childUnits.length){
@@ -1323,7 +1514,8 @@ function render(){
     const col = personColor(p);
     const rect = el('rect',{x:-NODE_W/2,y:-NODE_H/2,width:NODE_W,height:NODE_H,rx:12,class:'node-rect',fill:col.fill,stroke:col.stroke},g);
     if(p.deceased){
-      el('line',{x1:-NODE_W/2+5,y1:NODE_H/2-5,x2:NODE_W/2-24,y2:-NODE_H/2+5,stroke:col.stroke,'stroke-width': p.death_confirmed?3.5:1.8,'stroke-linecap':'round',opacity:p.death_confirmed?1:.55},g);
+      el('path',{d:`M${-NODE_W/2+2},${-NODE_H/2+2} L${-NODE_W/2+19},${-NODE_H/2+2} L${-NODE_W/2+2},${-NODE_H/2+19} Z`,
+        fill: p.death_confirmed? '#1a1a1a' : col.stroke, opacity:p.death_confirmed?1:.55},g);
     }
     const name = fullName(readOnly && p.whatsapp ? {...p} : p);
     el('text',{x:0,y:-2,'text-anchor':'middle',class:'node-name',fill:'var(--ink)','font-size':13.5},g).textContent = name.length>16? name.slice(0,15)+'…': name;
@@ -1333,11 +1525,11 @@ function render(){
     el('text',{x:0,y:16,'text-anchor':'middle',class:'node-sub',fill:'var(--ink-soft)','font-size':10.5},g).textContent = sub;
     if(p.alias_of){
       const pin = el('text',{x:NODE_W/2-10,y:-NODE_H/2+4,class:'pin-badge','font-size':16},g);
-      pin.textContent='📌';
+      pin.textContent='🔁';
       pin.addEventListener('click',(e)=>{ e.stopPropagation(); focusOn(p.alias_of); });
     } else if(personList().some(x=>x.alias_of===p.id)){
       const pin = el('text',{x:NODE_W/2-10,y:-NODE_H/2+4,class:'pin-badge','font-size':16},g);
-      pin.textContent='📌';
+      pin.textContent='🔁';
       pin.addEventListener('click',(e)=>{ e.stopPropagation(); const al=personList().find(x=>x.alias_of===p.id); if(al) focusOn(al.id); });
     }
     if(p.events && p.events.length){
@@ -1422,7 +1614,7 @@ wrap.addEventListener('wheel',(e)=>{
 },{passive:false});
 document.getElementById('zoom-in').onclick=()=>{camera.scale=Math.min(2.2,camera.scale+0.15);applyCamera();};
 document.getElementById('zoom-out').onclick=()=>{camera.scale=Math.max(0.25,camera.scale-0.15);applyCamera();};
-document.getElementById('zoom-reset').onclick=()=>{camera={x:40,y:20,scale:1};applyCamera();};
+document.getElementById('zoom-reset').onclick=()=>{centerTree();};
 
 /* ============================= TOUCH: PAN (1 finger) + PINCH ZOOM (2 fingers) ============================= */
 let touchMode = null; // 'pan' | 'pinch'
@@ -1475,7 +1667,6 @@ function centerTree(){
   camera.y = wrap.clientHeight/2 - ((minY+maxY)/2)*camera.scale;
   applyCamera();
 }
-document.getElementById('btn-center').addEventListener('click', centerTree);
 
 wrap.addEventListener('click',(e)=>{
   if(e.target===wrap || e.target.id==='tree-svg'){
@@ -1507,14 +1698,15 @@ function openRadialFor(pid, evt, isAlias){
     del.onclick=()=>{ closeRadialMenu(); deletePerson(pid); };
     radialMenu.appendChild(del);
   } else {
-    const del = document.createElement('button'); del.className='rm-del'; del.textContent='🗑️ حذف'; del.onclick=()=>{ closeRadialMenu(); deletePerson(pid); };
     const edit = document.createElement('button'); edit.className='rm-edit'; edit.textContent='✏️ تعديل'; edit.onclick=()=>{ closeRadialMenu(); openEditPerson(pid); };
-    const card = document.createElement('button'); card.textContent='ℹ️ البطاقة والأحداث'; card.onclick=()=>{ closeRadialMenu(); openPersonCard(pid); };
     const add = document.createElement('button'); add.className='rm-add'; add.textContent='📌 إضافة شخص ذو علاقة'; add.onclick=()=>{ closeRadialMenu(); openAddRelation(pid); };
+    const card = document.createElement('button'); card.textContent='ℹ️ البطاقة والأحداث'; card.onclick=()=>{ closeRadialMenu(); openPersonCard(pid); };
     const share = document.createElement('button'); share.className='rm-share'; share.textContent='🔗 مشاركة لتأكيد العلاقة'; share.onclick=()=>{ closeRadialMenu(); openConfirmShare(pid); };
     const lineage = document.createElement('button'); lineage.textContent = highlightedLineageId===pid ? '✖️ إلغاء تظليل مسار النسب' : '🧬 تظليل مسار النسب'; lineage.onclick=()=>{ closeRadialMenu(); toggleLineageHighlight(pid); };
-    const descend = document.createElement('button'); descend.textContent = highlightedDescendantsId===pid ? '✖️ إلغاء تلوين النسل' : '🎨 تلوين نسل هذا الشخص'; descend.onclick=()=>{ closeRadialMenu(); toggleDescendantHighlight(pid); };
-    const buttons = [del,edit,card,add,share,lineage,descend];
+    const descend = document.createElement('button'); descend.textContent = highlightedDescendantsId===pid ? '✖️ إلغاء تلوين النسل' : '🎨 تلوين النسل'; descend.onclick=()=>{ closeRadialMenu(); toggleDescendantHighlight(pid); };
+    const dup = document.createElement('button'); dup.textContent='🔁 ده نفس شخص موجود بالفعل'; dup.onclick=()=>{ closeRadialMenu(); openMarkDuplicate(pid); };
+    const del = document.createElement('button'); del.className='rm-del'; del.textContent='🗑️ حذف'; del.onclick=()=>{ closeRadialMenu(); deletePerson(pid); };
+    const buttons = [edit,add,card,share,lineage,descend,dup];
     if(currentTreeId==='main'){
       const p = state.people[pid];
       // marriage/kinship corner: only for a MARRIED female, seeded as her own independent
@@ -1523,11 +1715,12 @@ function openRadialFor(pid, evt, isAlias){
       // family, kept apart from the main tree.
       if(p.gender==='f' && marriagesOf(pid).length>0){
         const corner = document.createElement('button');
-        corner.textContent = p.linked_tree_id ? '🧭 فتح ركن القرابة والمصاهرة الخاص بها' : '🧭 إنشاء ركن القرابة والمصاهرة لها';
+        corner.textContent = p.linked_tree_id ? '🧭 فتح مصاهرة ' + p.first_name : '🧭 ركن القرابة والمصاهرة';
         corner.onclick=()=>{ closeRadialMenu(); openOrCreateSubtree(pid, 'marriage-corner'); };
         buttons.push(corner);
       }
     }
+    buttons.push(del);
     buttons.forEach(b=>radialMenu.appendChild(b));
   }
   radialMenu.style.display='flex';
@@ -1546,8 +1739,8 @@ function closeRadialMenu(){ radialMenu.style.display='none'; activeMenuPersonId=
 document.addEventListener('click',(e)=>{ if(!radialMenu.contains(e.target) && !e.target.closest('.node-group')) closeRadialMenu(); });
 
 function updateToolbarButtons(){
-  document.getElementById('btn-edit-toolbar').disabled = !selectedId;
-  document.getElementById('btn-del-toolbar').disabled = !selectedId;
+  // no-op now: the top-bar edit/delete buttons were removed as duplicates of the same
+  // actions already available from a person's own popup menu
 }
 
 /* ============================= ADD / EDIT PERSON ============================= */
@@ -1577,9 +1770,19 @@ function refreshParentOptions(pid){
 /* ============================= MORE MENU (mobile-friendly toolbar) ============================= */
 const moreMenu = document.getElementById('tb-more-menu');
 const moreRest = document.getElementById('tb-more-rest');
+function positionDropdown(menuEl, btnEl){
+  const rect = btnEl.getBoundingClientRect();
+  let left = rect.left;
+  if(left + menuEl.offsetWidth > window.innerWidth - 8) left = window.innerWidth - menuEl.offsetWidth - 8;
+  left = Math.max(8, left);
+  menuEl.style.left = left+'px';
+  menuEl.style.top = (rect.bottom+4)+'px';
+}
 document.getElementById('btn-more').addEventListener('click',(e)=>{
   e.stopPropagation();
-  moreMenu.style.display = moreMenu.style.display==='flex' ? 'none' : 'flex';
+  const willOpen = moreMenu.style.display!=='flex';
+  moreMenu.style.display = willOpen ? 'flex' : 'none';
+  if(willOpen) positionDropdown(moreMenu, e.currentTarget);
 });
 document.getElementById('btn-more-expand').addEventListener('click',(e)=>{
   e.stopPropagation();
@@ -1599,8 +1802,10 @@ document.addEventListener('click',(e)=>{
 const treeSwitcherMenu = document.getElementById('tree-switcher-menu');
 document.getElementById('btn-tree-switcher').addEventListener('click',(e)=>{
   e.stopPropagation();
-  if(treeSwitcherMenu.style.display!=='flex') refreshTreeSwitcherMenu();
-  treeSwitcherMenu.style.display = treeSwitcherMenu.style.display==='flex' ? 'none' : 'flex';
+  const willOpen = treeSwitcherMenu.style.display!=='flex';
+  if(willOpen) refreshTreeSwitcherMenu();
+  treeSwitcherMenu.style.display = willOpen ? 'flex' : 'none';
+  if(willOpen) positionDropdown(treeSwitcherMenu, e.currentTarget);
 });
 document.addEventListener('click',(e)=>{
   if(treeSwitcherMenu.style.display==='flex' && !e.target.closest('#tree-switcher-menu') && e.target.id!=='btn-tree-switcher'){
@@ -1624,7 +1829,8 @@ document.getElementById('btn-add-root').addEventListener('click',()=>{
   document.getElementById('f-contact-enabled').checked=false;
   refreshContactViaOptions(null);
   document.getElementById('f-contact-via').value='';
-  ['f-phone1','f-phone2','f-addr1','f-addr2','f-email','f-birthdate','f-deathdate','f-job'].forEach(id=>document.getElementById(id).value='');
+  ['f-phone1','f-phone2','f-addr1','f-addr2','f-email','f-job'].forEach(id=>document.getElementById(id).value='');
+  ['f-birth-day','f-birth-month','f-birth-year','f-death-day','f-death-month','f-death-year'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-photo').value=''; pendingPhotoData=null;
   document.getElementById('f-photo-preview').style.display='none';
   document.getElementById('f-alias-wrap').style.display='';
@@ -1633,8 +1839,6 @@ document.getElementById('btn-add-root').addEventListener('click',()=>{
   document.getElementById('f-alias').value='';
   openModal('modal-person');
 });
-document.getElementById('btn-edit-toolbar').addEventListener('click',()=>{ if(selectedId) openEditPerson(selectedId); });
-document.getElementById('btn-del-toolbar').addEventListener('click',()=>{ if(selectedId) deletePerson(selectedId); });
 
 let pendingPhotoData = null;
 document.getElementById('f-photo').addEventListener('change',(e)=>{
@@ -1649,6 +1853,27 @@ document.getElementById('f-photo').addEventListener('change',(e)=>{
   reader.readAsDataURL(file);
 });
 
+function composeDateFromParts(dayId,monthId,yearId){
+  const day = document.getElementById(dayId).value.trim();
+  const month = document.getElementById(monthId).value.trim();
+  const year = document.getElementById(yearId).value.trim();
+  if(!year) return '';
+  if(day && month) return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  if(month) return `${year}-${String(month).padStart(2,'0')}`;
+  return `${year}`;
+}
+function fillDatePartsFromString(dateStr, dayId, monthId, yearId){
+  document.getElementById(dayId).value=''; document.getElementById(monthId).value=''; document.getElementById(yearId).value='';
+  if(!dateStr) return;
+  let m = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m){ document.getElementById(yearId).value=m[1]; document.getElementById(monthId).value=+m[2]; document.getElementById(dayId).value=+m[3]; return; }
+  m = dateStr.match(/^(\d{4})-(\d{1,2})$/);
+  if(m){ document.getElementById(yearId).value=m[1]; document.getElementById(monthId).value=+m[2]; return; }
+  m = dateStr.match(/^(\d{4})$/);
+  if(m){ document.getElementById(yearId).value=m[1]; }
+  // otherwise: unrecognized legacy free-text date -- leave the day/month/year parts blank; the
+  // original string stays intact in the data until the user re-saves this record
+}
 function openEditPerson(pid){
   const p = state.people[pid]; if(!p) return;
   editingPersonId = pid; pendingRelation=null;
@@ -1669,8 +1894,8 @@ function openEditPerson(pid){
   document.getElementById('f-addr1').value=p.addr1||'';
   document.getElementById('f-addr2').value=p.addr2||'';
   document.getElementById('f-email').value=p.email||'';
-  document.getElementById('f-birthdate').value=p.birth_date||'';
-  document.getElementById('f-deathdate').value=p.death_date||'';
+  fillDatePartsFromString(p.birth_date, 'f-birth-day','f-birth-month','f-birth-year');
+  fillDatePartsFromString(p.death_date, 'f-death-day','f-death-month','f-death-year');
   document.getElementById('f-job').value=p.job||'';
   document.getElementById('f-photo').value=''; pendingPhotoData=p.photo||null;
   const prev = document.getElementById('f-photo-preview');
@@ -1703,8 +1928,8 @@ document.getElementById('btn-save-person').addEventListener('click',()=>{
     addr1: document.getElementById('f-addr1').value.trim(),
     addr2: document.getElementById('f-addr2').value.trim(),
     email: document.getElementById('f-email').value.trim(),
-    birth_date: document.getElementById('f-birthdate').value.trim(),
-    death_date: document.getElementById('f-deathdate').value.trim(),
+    birth_date: composeDateFromParts('f-birth-day','f-birth-month','f-birth-year'),
+    death_date: composeDateFromParts('f-death-day','f-death-month','f-death-year'),
     job: document.getElementById('f-job').value.trim(),
     care_status: document.getElementById('f-care-status').value,
   };
@@ -1741,9 +1966,14 @@ function collectSubtreeIds(pid, acc){
   acc = acc || new Set();
   if(acc.has(pid)) return acc;
   acc.add(pid);
-  // include this person's own spouse(s) too -- deleting someone should take their marriage
-  // partner(s) with them, not just unlink the marriage and leave a dangling spouse behind
-  marriagesOf(pid).forEach(m=>{ acc.add(m.husband_id); acc.add(m.wife_id); });
+  // Only sweep a spouse into the deletion if this is their ONLY marriage -- otherwise (a
+  // husband with several wives, or a wife with several husbands) each marriage is its own
+  // separate relationship: deleting one wife must never also delete the shared husband (he's
+  // still married to the others), only her own side and her own children go.
+  marriagesOf(pid).forEach(m=>{
+    const spouseId = m.husband_id===pid ? m.wife_id : m.husband_id;
+    if(marriagesOf(spouseId).length===1) acc.add(spouseId);
+  });
   childrenOf(pid).forEach(c=> collectSubtreeIds(c.id, acc));
   return acc;
 }
@@ -2121,7 +2351,12 @@ function openAddRelation(baseId){
     if(!blockedByNasab) options.push(['son','➕ ابن'],['daughter','➕ ابنة']);
     if(canAddParents) options.push(['father','➕ أب'],['mother','➕ أم']);
   } else {
-    options = [['spouse','➕ زوج']];
+    // In a marriage/kinship-corner page, the whole point is letting the female herself carry
+    // the family forward -- so unlike the main tree, she can add sons/daughters directly here
+    // without having to go through her husband's card first.
+    options = state.corner_type==='marriage-corner'
+      ? [['spouse','➕ زوج'],['son','➕ ابن'],['daughter','➕ ابنة']]
+      : [['spouse','➕ زوج']];
     if(canAddParents) options.push(['father','➕ أب'],['mother','➕ أم']);
   }
   if(blockedByNasab){
@@ -3151,13 +3386,23 @@ function toggleDescendantHighlight(pid){
   applyLineageHighlight();
   applyDescendantHighlight();
 }
+// Pure blood descendants only (children, grandchildren, ...) -- unlike collectSubtreeIds (used
+// for deletion), this deliberately leaves out every spouse at every generation, since "تلوين
+// النسل" should only colour the bloodline itself, not who married into it.
+function collectBloodDescendantsOnly(pid, acc){
+  acc = acc || new Set();
+  if(acc.has(pid)) return acc;
+  acc.add(pid);
+  childrenOf(pid).forEach(c=> collectBloodDescendantsOnly(c.id, acc));
+  return acc;
+}
 function applyDescendantHighlight(){
   document.querySelectorAll('.node-rect').forEach(r=>r.classList.remove('descendant-highlight'));
   if(!highlightedDescendantsId){
     if(!highlightedLineageId) document.querySelectorAll('.node-group').forEach(g=>g.classList.remove('dim'));
     return;
   }
-  const ids = collectSubtreeIds(highlightedDescendantsId);
+  const ids = collectBloodDescendantsOnly(highlightedDescendantsId);
   document.querySelectorAll('.node-group').forEach(g=>{
     const id = g.getAttribute('data-id');
     g.classList.toggle('dim', !ids.has(id));
@@ -3228,7 +3473,6 @@ window.addEventListener('keydown',(e)=>{
   if(!typing && e.key==='-'){ camera.scale=Math.max(0.25,camera.scale-0.15); applyCamera(); }
 });
 document.getElementById('btn-undo').addEventListener('click', doUndo);
-document.getElementById('btn-redo').addEventListener('click', doRedo);
 
 if(!checkHash()){
   camera = {x:40,y:20,scale:1};
