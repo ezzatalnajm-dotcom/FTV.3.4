@@ -202,13 +202,13 @@
     </div>
     <div style="position:relative">
       <button class="tb-btn" id="btn-tree-switcher">📄 الصفحة</button>
-      <div id="tree-switcher-menu" style="display:none;position:fixed;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:200;padding:8px;width:240px;max-height:60vh;overflow-y:auto;flex-direction:column;gap:4px">
+      <div id="tree-switcher-menu" style="display:none;position:fixed;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:9999;padding:8px;width:240px;max-height:60vh;overflow-y:auto;flex-direction:column;gap:4px">
         <div id="tree-switcher-list" style="display:flex;flex-direction:column;gap:4px"></div>
       </div>
     </div>
     <div style="position:relative">
       <button class="tb-btn" id="btn-more">☰ المزيد</button>
-      <div id="tb-more-menu" style="display:none;position:fixed;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:200;padding:8px;width:220px;max-height:70vh;overflow-y:auto;flex-direction:column;gap:4px">
+      <div id="tb-more-menu" style="display:none;position:fixed;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:9999;padding:8px;width:220px;max-height:70vh;overflow-y:auto;flex-direction:column;gap:4px">
         <button class="tb-btn" id="btn-stats" style="width:100%">📊 إحصائيات</button>
         <button class="tb-btn" id="btn-family-book" style="width:100%">📖 الكتاب العائلي (PDF)</button>
         <button class="tb-btn" id="btn-share-book" style="width:100%">📤 مشاركة الكتاب</button>
@@ -399,6 +399,9 @@
       <div class="field"><label>نص الرسالة</label>
         <textarea id="bc-text" rows="4" placeholder="مثال: بمناسبة عيد الأضحى المبارك، كل عام والعائلة بخير 🎉" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:Cairo"></textarea>
       </div>
+      <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+        <label class="radio-opt"><input type="checkbox" id="bc-track" checked> 📊 تتبّع الردود -- كل رد هيتفتحلك واتساب بيه</label>
+      </div>
       <div class="field">
         <label>هيتبعت لمين؟</label>
         <div class="radio-group" style="flex-direction:column;align-items:flex-start;gap:6px">
@@ -422,6 +425,11 @@
   <div class="modal">
     <div class="modal-head"><h2>⚙️ الإعدادات</h2><button class="modal-close" data-close>✕</button></div>
     <div class="modal-body">
+      <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
+        <label>📱 رقم واتسابك انت (لاستلام ردود الدعوات)</label>
+        <input type="text" id="settings-sender-whatsapp" placeholder="مثال: 201xxxxxxxxx" style="margin-top:6px">
+        <div class="hint" style="margin-top:6px">لما حد يفتح رابط دعوة ويرد (سأحضر/لن أحضر...)، هيتفتحله واتساب على الرقم ده برسالة جاهزة بالرد، وهو بس يدوس إرسال.</div>
+      </div>
       <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
         <label class="radio-opt"><input type="checkbox" id="settings-whatsapp-enabled"> تفعيل التواصل المباشر عبر واتساب في الشجرة كلها</label>
         <div class="hint" style="margin-top:6px">لو قفلته، هتختفي كل أزرار الواتساب المباشرة من كل مكان في التطبيق حتى لو شخص معيّن مفعّلها لنفسه. تقدر تفعّلها تاني في أي وقت.</div>
@@ -1873,6 +1881,11 @@ function refreshContactViaOptions(excludeId){
   });
 }
 /* ============================= MORE MENU (mobile-friendly toolbar) ============================= */
+// iOS Safari can trap position:fixed dropdowns behind other content when they're nested deep in
+// the topbar's DOM subtree (a longstanding WebKit stacking-context quirk). Re-parenting them to
+// be direct children of <body> sidesteps that entirely.
+document.body.appendChild(document.getElementById('tb-more-menu'));
+document.body.appendChild(document.getElementById('tree-switcher-menu'));
 const moreMenu = document.getElementById('tb-more-menu');
 const moreRest = document.getElementById('tb-more-rest');
 function positionDropdown(menuEl, btnEl){
@@ -2381,8 +2394,8 @@ function renderExternalChildren(pid){
     };
   });
 }
-function buildEventInviteLink(personName, ev){
-  const payload = { personName, type: ev.type, date: ev.date, place: ev.place, text: ev.text };
+function buildEventInviteLink(personName, ev, senderPhone){
+  const payload = { personName, type: ev.type, date: ev.date, place: ev.place, text: ev.text, senderPhone: senderPhone||'' };
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   return location.origin + location.pathname + '#eventinvite=' + encoded;
 }
@@ -2390,11 +2403,15 @@ function showEventInviteView(data){
   document.body.innerHTML = `
     <div style="max-width:480px;margin:60px auto;padding:24px;font-family:Cairo,sans-serif;background:#FFFCF5;border:1.5px solid #C9BFA4;border-radius:16px;text-align:center">
       <div style="font-family:'Markazi Text',serif;font-size:24px;font-weight:700;margin-bottom:6px">🎉 دعوة/إشعار عائلي</div>
-      <div style="font-size:16px;font-weight:700;margin-top:10px">${data.type||''} -- ${data.personName||''}</div>
+      <div style="font-size:16px;font-weight:700;margin-top:10px">${data.type||''}${data.personName? ' -- '+data.personName:''}</div>
       <div style="font-size:13.5px;color:#4B5A57;margin-top:6px">${data.date||''}${data.place? ' — '+data.place:''}</div>
       <div style="font-size:14px;margin-top:14px;line-height:1.8">${data.text||''}</div>
-      <div id="invite-actions" style="display:flex;flex-direction:column;gap:8px;margin-top:20px"></div>
-      <div id="invite-done" style="display:none;margin-top:14px;font-weight:700;color:#1F6B31">✓ تم تسجيل ردّك محليًا على هذا الجهاز.</div>
+      <div style="margin-top:18px;text-align:right">
+        <label style="font-size:12.5px;font-weight:700">اسمك (عشان ردّك يوصله باسمك)</label>
+        <input id="invite-your-name" placeholder="اكتب اسمك هنا" style="width:100%;box-sizing:border-box;margin-top:6px;padding:9px 12px;border:1.5px solid #C9BFA4;border-radius:9px;font-family:Cairo">
+      </div>
+      <div id="invite-actions" style="display:flex;flex-direction:column;gap:8px;margin-top:14px"></div>
+      <div id="invite-done" style="display:none;margin-top:14px;font-weight:700;color:#1F6B31">✓ اتسجل ردّك، وهيتفتحلك واتساب عشان تبعته فعليًا.</div>
     </div>`;
   const actions = document.getElementById('invite-actions');
   const isSad = data.type==='وفاة' || data.type==='عزاء';
@@ -2405,13 +2422,19 @@ function showEventInviteView(data){
     btn.textContent = label;
     btn.style.cssText = 'padding:10px;border-radius:9px;border:1.5px solid #C9BFA4;background:#F7F2E7;font-family:Cairo;font-weight:700;cursor:pointer';
     btn.onclick = ()=>{
+      const yourName = document.getElementById('invite-your-name').value.trim() || 'أحد أفراد العائلة';
       try{
         const received = JSON.parse(localStorage.getItem('received-events')||'[]');
-        received.push({ ...data, response: label, receivedAt: new Date().toISOString() });
+        received.push({ ...data, response: label, respondentName: yourName, receivedAt: new Date().toISOString() });
         localStorage.setItem('received-events', JSON.stringify(received));
       }catch(e){}
       actions.style.display='none';
       document.getElementById('invite-done').style.display='block';
+      if(data.senderPhone){
+        const digits = data.senderPhone.replace(/[^\d]/g,'');
+        const msg = `${yourName} رد على دعوة "${data.type}${data.personName? ' -- '+data.personName:''}": ${label}`;
+        window.open('https://wa.me/'+digits+'?text='+encodeURIComponent(msg), '_blank');
+      }
     };
     actions.appendChild(btn);
   });
@@ -2432,7 +2455,7 @@ function renderCardEvents(pid){
         ? `<a href="${link}" target="_blank" style="display:inline-block;margin:3px;padding:4px 10px;border-radius:14px;background:#DFF3E1;color:#1F6B31;font-size:12px;text-decoration:none;font-weight:700">💬 ${label}</a>`
         : `<span style="display:inline-block;margin:3px;padding:4px 10px;border-radius:14px;background:var(--parchment-deep);color:var(--ink-soft);font-size:12px">${label} (لا يوجد تواصل مباشر)</span>`;
     }).join('');
-    const inviteLink = buildEventInviteLink(fullName(p), ev);
+    const inviteLink = buildEventInviteLink(fullName(p), ev, getSenderWhatsApp());
     return `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <span><b>${ev.type}</b>${ev.date? ' — '+ev.date:''}${ev.place? ' — '+ev.place:''}</span>
@@ -2904,6 +2927,15 @@ function renderBroadcastPicker(query){
 document.getElementById('bc-generate').addEventListener('click',()=>{
   const text = document.getElementById('bc-text').value.trim();
   if(!text){ toast('اكتب نص الرسالة الأول'); return; }
+  const track = document.getElementById('bc-track').checked;
+  const senderPhone = getSenderWhatsApp();
+  if(track && !senderPhone){
+    toast('لتفعيل تتبّع الردود، سجّل رقم واتسابك انت في ⚙️ الإعدادات الأول');
+    return;
+  }
+  const finalText = track
+    ? text + '\n\nمن فضلك رد من هنا: ' + buildEventInviteLink('', {type:'رسالة عامة', date:'', place:'', text}, senderPhone)
+    : text;
   const mode = document.querySelector('input[name=bc-mode]:checked').value;
   const checkedIds = new Set(Array.from(document.querySelectorAll('.bc-person-check:checked')).map(el=>el.value));
   let targets;
@@ -2916,7 +2948,7 @@ document.getElementById('bc-generate').addEventListener('click',()=>{
   const results = document.getElementById('bc-results');
   const rows = targets.map(p=>{
     const contact = resolveContact(p);
-    const link = contact? waLink(contact.phone, text): null;
+    const link = contact? waLink(contact.phone, finalText): null;
     const label = contact && contact.via ? `${fullName(p)} (عبر ${fullName(contact.via)})` : fullName(p);
     return link
       ? `<a href="${link}" target="_blank" class="bc-sent-link" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:9px;background:#DFF3E1;color:#1F6B31;text-decoration:none;font-weight:700;font-size:13px">💬 ${label}<span>إرسال ›</span></a>`
@@ -2963,6 +2995,7 @@ document.getElementById('btn-save-ultimate-ancestor').addEventListener('click',(
 if(document.getElementById('btn-settings')) document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('settings-whatsapp-enabled').checked = state.settings? state.settings.whatsapp_enabled!==false : true;
   document.getElementById('settings-pin').value = (state.settings && state.settings.pin) || '';
+  document.getElementById('settings-sender-whatsapp').value = getSenderWhatsApp();
   openModal('modal-settings');
 });
 document.getElementById('btn-save-settings').addEventListener('click',()=>{
@@ -2970,8 +3003,12 @@ document.getElementById('btn-save-settings').addEventListener('click',()=>{
   if(!state.settings) state.settings = {};
   state.settings.whatsapp_enabled = document.getElementById('settings-whatsapp-enabled').checked;
   state.settings.pin = document.getElementById('settings-pin').value.trim() || null;
+  state.settings.sender_whatsapp = document.getElementById('settings-sender-whatsapp').value.replace(/[^\d+]/g,'').trim() || null;
   saveData(); closeAllModals(); toast('تم حفظ الإعدادات');
 });
+function getSenderWhatsApp(){
+  return (state.settings && state.settings.sender_whatsapp) || '';
+}
 
 /* ============================= MERGE ============================= */
 document.getElementById('btn-merge').addEventListener('click',()=>{
