@@ -192,6 +192,7 @@
     <h1 class="brand-font">🌳 شجرة العائلة</h1>
     <button class="tb-btn" id="btn-add-root" style="display:none">➕ إضافة شخص</button>
     <button class="tb-btn" id="btn-undo">↩️ تراجع</button>
+    <button class="tb-btn" id="btn-backup">💾 حفظ</button>
     <button class="tb-btn" id="btn-share">🔗 مشاركة</button>
     <button class="tb-btn" id="btn-broadcast">🎉 دعوات ومناسبات</button>
     <button class="tb-btn" id="btn-events">📅 الأحداث</button>
@@ -211,21 +212,16 @@
       <div id="tb-more-menu" style="display:none;position:fixed;background:var(--card-bg);border:1.5px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:9999;padding:8px;width:220px;max-height:70vh;overflow-y:auto;flex-direction:column;gap:4px">
         <button class="tb-btn" id="btn-stats" style="width:100%">📊 إحصائيات</button>
         <button class="tb-btn" id="btn-family-book" style="width:100%">📖 الكتاب العائلي (PDF)</button>
-        <button class="tb-btn" id="btn-share-book" style="width:100%">📤 مشاركة الكتاب</button>
-        <button class="tb-btn" id="btn-backup" style="width:100%">💾 نسخة احتياطية</button>
         <button class="tb-btn" id="btn-kinship" style="width:100%">🧬 صلة القرابة</button>
         <button class="tb-btn" id="btn-health" style="width:100%">🩺 فحص الشجرة</button>
         <button class="tb-btn" id="btn-received-copies" style="width:100%">📥 نسخ مستلمة</button>
-        <button class="tb-btn" id="btn-received-events" style="width:100%">📥 دعوات استلمتها</button>
         <button class="tb-btn" id="btn-more-expand" style="width:100%">⋯ المزيد من الخيارات</button>
         <div id="tb-more-rest" style="display:none;flex-direction:column;gap:4px">
           <button class="tb-btn" id="btn-activity-log" style="width:100%">📜 سجل التغييرات</button>
-          <button class="tb-btn" id="btn-export" style="width:100%">🖼️ تصدير/طباعة</button>
-          <button class="tb-btn" id="btn-restore" style="width:100%">📂 استعادة</button>
-          <input type="file" id="restore-file" accept=".json" style="display:none">
           <button class="tb-btn" id="btn-merge" style="width:100%">🌿 دمج الشجرة</button>
           <button class="tb-btn" id="btn-secret" style="width:100%">🔑 المفتاح السري</button>
           <button class="tb-btn" id="btn-transfer" style="width:100%">👑 نقل الإدارة</button>
+          <button class="tb-btn" id="btn-contact-us" style="width:100%">📞 تواصل معنا</button>
         </div>
       </div>
     </div>
@@ -399,9 +395,6 @@
       <div class="field"><label>نص الرسالة</label>
         <textarea id="bc-text" rows="4" placeholder="مثال: بمناسبة عيد الأضحى المبارك، كل عام والعائلة بخير 🎉" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:Cairo"></textarea>
       </div>
-      <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
-        <label class="radio-opt"><input type="checkbox" id="bc-track" checked> 📊 تتبّع الردود -- كل رد هيتفتحلك واتساب بيه</label>
-      </div>
       <div class="field">
         <label>هيتبعت لمين؟</label>
         <div class="radio-group" style="flex-direction:column;align-items:flex-start;gap:6px">
@@ -426,11 +419,6 @@
     <div class="modal-head"><h2>⚙️ الإعدادات</h2><button class="modal-close" data-close>✕</button></div>
     <div class="modal-body">
       <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
-        <label>📱 رقم واتسابك انت (لاستلام ردود الدعوات)</label>
-        <input type="text" id="settings-sender-whatsapp" placeholder="مثال: 201xxxxxxxxx" style="margin-top:6px">
-        <div class="hint" style="margin-top:6px">لما حد يفتح رابط دعوة ويرد (سأحضر/لن أحضر...)، هيتفتحله واتساب على الرقم ده برسالة جاهزة بالرد، وهو بس يدوس إرسال.</div>
-      </div>
-      <div class="field" style="background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
         <label class="radio-opt"><input type="checkbox" id="settings-whatsapp-enabled"> تفعيل التواصل المباشر عبر واتساب في الشجرة كلها</label>
         <div class="hint" style="margin-top:6px">لو قفلته، هتختفي كل أزرار الواتساب المباشرة من كل مكان في التطبيق حتى لو شخص معيّن مفعّلها لنفسه. تقدر تفعّلها تاني في أي وقت.</div>
       </div>
@@ -441,6 +429,20 @@
       </div>
     </div>
     <div class="modal-foot"><button class="btn btn-primary" id="btn-save-settings">حفظ</button></div>
+  </div>
+</div>
+
+<!-- Contact us -->
+<div class="modal-overlay" id="modal-contact-us">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-head"><h2>📞 تواصل معنا</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="hint" style="margin-bottom:12px">اختار اللي يناسبك، وهيتفتحلك الإيميل جاهز.</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn" id="contact-report-problem" style="width:100%">🐞 الإبلاغ عن مشكلة</button>
+        <button class="btn" id="contact-suggest-feature" style="width:100%">💡 اقتراح ميزة</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -547,15 +549,6 @@
   </div>
 </div>
 
-<!-- Received event invitations -->
-<div class="modal-overlay" id="modal-received-events">
-  <div class="modal" style="max-width:520px">
-    <div class="modal-head"><h2>📥 دعوات استلمتها</h2><button class="modal-close" data-close>✕</button></div>
-    <div class="modal-body" id="received-events-body"></div>
-    <div class="modal-foot"><button class="btn btn-primary" data-close>إغلاق</button></div>
-  </div>
-</div>
-
 <!-- Received-copy sender info (shown once when importing a shared tree/page) -->
 <div class="modal-overlay" id="modal-received-info">
   <div class="modal">
@@ -617,11 +610,11 @@
 <!-- Person card (detail view) -->
 <div class="modal-overlay" id="modal-card">
   <div class="modal" style="max-width:520px">
-    <div class="modal-head"><h2 id="card-title">بطاقة الشخص</h2><button class="modal-close" data-close>✕</button></div>
+    <div class="modal-head"><h2 id="card-title">حدث مهم</h2><button class="modal-close" data-close>✕</button></div>
     <div class="modal-body" id="card-body"></div>
     <div class="modal-foot">
-      <button class="btn" id="card-edit-btn">✏️ تعديل البيانات</button>
-      <button class="btn btn-primary" data-close>إغلاق</button>
+      <button class="btn" id="card-broadcast-btn">🎉 دعوات ومناسبات</button>
+      <button class="btn btn-primary" id="card-save-close-btn">💾 حفظ</button>
     </div>
   </div>
 </div>
@@ -672,6 +665,7 @@ let state = { people: {}, marriages: {}, settings: { whatsapp_enabled: true }, l
 let undoStack = [];
 let redoStack = [];
 let selectedId = null;
+let cardOpenPid = null;
 let activeMenuPersonId = null;
 let camera = { x: 0, y: 0, scale: 1 };
 let isPanning = false, panStart = {x:0,y:0}, camStart = {x:0,y:0};
@@ -753,6 +747,7 @@ document.getElementById('btn-save-received-info').addEventListener('click', asyn
   if(!state.log) state.log = [];
   await saveData();
   render(); centerTree();
+  setTimeout(centerTree, 80);
   toast('اتحفظت النسخة المستلمة كصفحة منفصلة -- تقدر ترجعلها من "نسخ مستلمة"');
   showCoach('👋 أهلاً بك! دور على اسمك (أو أقرب شخص ليك) في الشجرة ودوس عليه، واختار "📌 إضافة شخص ذو علاقة" عشان تضيف فرعك. أكد نوع العلاقة والاسم واحفظ، وكرر بنفس الطريقة.');
 });
@@ -1821,9 +1816,9 @@ function openRadialFor(pid, evt, isAlias){
     del.onclick=()=>{ closeRadialMenu(); deletePerson(pid); };
     radialMenu.appendChild(del);
   } else {
-    const edit = document.createElement('button'); edit.className='rm-edit'; edit.textContent='✏️ تعديل البيانات'; edit.onclick=()=>{ closeRadialMenu(); openEditPerson(pid); };
+    const edit = document.createElement('button'); edit.className='rm-edit'; edit.textContent='✏️ تعديل بيانات الشخص'; edit.onclick=()=>{ closeRadialMenu(); openEditPerson(pid); };
     const add = document.createElement('button'); add.className='rm-add'; add.textContent='📌 إضافة شخص ذو علاقة'; add.onclick=()=>{ closeRadialMenu(); hideCoach(); openAddRelation(pid); };
-    const card = document.createElement('button'); card.textContent='ℹ️ الدعوات والمناسبات'; card.onclick=()=>{ closeRadialMenu(); openPersonCard(pid); };
+    const card = document.createElement('button'); card.textContent='📅 حدث مهم'; card.onclick=()=>{ closeRadialMenu(); openPersonCard(pid); };
     const continueShare = document.createElement('button'); continueShare.className='rm-share'; continueShare.textContent='📤 مشاركة لتكملة الشجرة'; continueShare.onclick=()=>{ closeRadialMenu(); openContinueShare(pid); };
     const share = document.createElement('button'); share.className='rm-share'; share.textContent='🔗 مشاركة لتأكيد العلاقة'; share.onclick=()=>{ closeRadialMenu(); openConfirmShare(pid); };
     const lineage = document.createElement('button'); lineage.textContent = highlightedLineageId===pid ? '✖️ إلغاء تعيين مسار النسب' : '🧬 تعيين مسار النسب'; lineage.onclick=()=>{ closeRadialMenu(); toggleLineageHighlight(pid); };
@@ -2135,64 +2130,7 @@ function deletePerson(pid){
 }
 
 // event message templates -- filled in automatically when a type is picked, editable after
-const EVENT_TEMPLATES = {
-  'خطوبة': (n,d,pl,gd)=> `احتفل${gd==='f'?'ت':''} ${n||'[الاسم]'} بخطوبت${gd==='f'?'ها':'ه'}${d? ' في '+d:' في [التاريخ]'}${pl? ' - مكان: '+pl:''}`,
-  'زواج': (n,d,pl,gd)=> `تزوّج${gd==='f'?'ت':''} ${n||'[الاسم]'}${d? ' في حفل يوم '+d:' في حفل يوم [التاريخ]'}${pl? ' - مكان: '+pl:''}`,
-  'مولود': (n,d,pl,gd)=> `وُلد${gd==='f'?'ت':''} ${n||'[الاسم]'}${d? ' بتاريخ '+d:' بتاريخ [التاريخ]'}`,
-  'نجاح دراسي': (n,d,pl,gd)=> `اجتاز${gd==='f'?'ت':''} ${n||'[الاسم]'} [الشهادة] بتقدير [التقدير]${d? ' في '+d:' في [التاريخ]'}`,
-  'تخرج': (n,d,pl,gd)=> `تخرّج${gd==='f'?'ت':''} ${n||'[الاسم]'} من [الجامعة]${d? ' في '+d:' في [التاريخ]'}`,
-  'ترقية': (n,d,pl,gd)=> `تمت ترقية ${n||'[الاسم]'} إلى [المسمى]${d? ' في '+d:' في [التاريخ]'}`,
-  'عيد ميلاد': (n,d,pl,gd)=> `احتفل${gd==='f'?'ت':''} ${n||'[الاسم]'} بعيد ميلاد${gd==='f'?'ها':'ه'}${d? ' في '+d:' في [التاريخ]'}`,
-  'ذكرى زواج': (n,d,pl,gd)=> `احتفل${gd==='f'?'ت':''} ${n||'[الاسم]'} بذكرى زواج${gd==='f'?'ها':'ه'}${d? ' في '+d:' في [التاريخ]'}`,
-  'عقيقة': (n,d)=> `أُقيمت عقيقة ${n||'[الاسم]'}${d? ' في '+d:' في [التاريخ]'}`,
-  'ختان': (n,d)=> `تم ختان ${n||'[الاسم]'}${d? ' في '+d:' في [التاريخ]'}`,
-  'حج/عمرة': (n,d,pl,gd)=> `${gd==='f'?'أدّت':'أدى'} ${n||'[الاسم]'} فريضة الحج/العمرة${d? ' في '+d:' في [التاريخ]'}`,
-  'وفاة': (n,d,pl,gd)=> `انتقل${gd==='f'?'ت':''} إلى رحمة الله ${n||'[الاسم]'}${d? ' بتاريخ '+d:' بتاريخ [التاريخ]'}${pl? ' - العزاء في '+pl:''}`,
-  'عزاء': (n,d,pl)=> `تقبل التعازي في وفاة ${n||'[الاسم]'}${d? ' يوم '+d:' يوم [التاريخ]'}${pl? ' - مكان: '+pl:''}`,
-  'أخرى': ()=> '',
-};
-// death/condolence events default to reaching everyone; happier/quieter events default to
-// close family only -- the person can always widen or narrow this before sending
-const EVENT_DEFAULT_LEVEL = { 'وفاة':'all', 'عزاء':'all', 'لم شمل':'all' };
-
-/* ============================= EVENT AUDIENCE (by degree) ============================= */
-// Same idea as computeConfirmationAudience, but bucketed into the three publish "degrees" so
-// an event can cascade from close family outward to everyone, computed from the real tree data.
-function computeEventAudience(pid, level){
-  const p = state.people[pid];
-  const seen = new Set([pid]);
-  const out = [];
-  function add(label, id){
-    if(!id || seen.has(id)) return;
-    const person = state.people[id];
-    if(!person) return;
-    seen.add(id); out.push({label, person});
-  }
-  add('الأب', p.father_id); add('الأم', p.mother_id);
-  personList().filter(x=>x.id!==pid && ((p.father_id&&x.father_id===p.father_id)||(p.mother_id&&x.mother_id===p.mother_id)))
-    .forEach(s=>add('أخ/أخت', s.id));
-  childrenOf(pid).forEach(c=>add('ابن/ابنة', c.id));
-  if(level==='first') return out;
-
-  const father = p.father_id? state.people[p.father_id]:null;
-  const mother = p.mother_id? state.people[p.mother_id]:null;
-  if(father){ add('الجد (لأب)', father.father_id); add('الجدة (لأب)', father.mother_id); }
-  if(mother){ add('الجد (لأم)', mother.father_id); add('الجدة (لأم)', mother.mother_id); }
-  childrenOf(pid).forEach(c=>childrenOf(c.id).forEach(gc=>add('حفيد/ة', gc.id)));
-  if(level==='second') return out;
-
-  const paternalUncleIds=[], maternalUncleIds=[];
-  if(father) personList().filter(x=>x.id!==father.id && ((father.father_id&&x.father_id===father.father_id)||(father.mother_id&&x.mother_id===father.mother_id)))
-    .forEach(u=>{ add('عم/عمة', u.id); paternalUncleIds.push(u.id); });
-  if(mother) personList().filter(x=>x.id!==mother.id && ((mother.father_id&&x.father_id===mother.father_id)||(mother.mother_id&&x.mother_id===mother.mother_id)))
-    .forEach(u=>{ add('خال/خالة', u.id); maternalUncleIds.push(u.id); });
-  paternalUncleIds.forEach(uid=>childrenOf(uid).forEach(c=>add('ابن/بنت عم', c.id)));
-  maternalUncleIds.forEach(uid=>childrenOf(uid).forEach(c=>add('ابن/بنت خال', c.id)));
-  if(level==='third') return out;
-
-  personList().filter(x=>!x.alias_of && x.id!==pid && !seen.has(x.id)).forEach(x=>add('فرد من العائلة', x.id));
-  return out;
-}
+const EVENT_TYPES = ['خطوبة','زواج','مولود','نجاح دراسي','تخرج','ترقية','عيد ميلاد','ذكرى زواج','عقيقة','ختان','حج/عمرة','وفاة','عزاء','لم شمل','أخرى'];
 
 // Resolve who a WhatsApp message would actually go to for this person, respecting the global
 // switch, their own privacy choice, and an optional stand-in contact (e.g. her father/husband).
@@ -2226,11 +2164,10 @@ function waLink(phone, text){
 /* ============================= PERSON CARD ============================= */
 function openPersonCard(pid){
   const p = state.people[pid]; if(!p) return;
+  cardOpenPid = pid;
   document.getElementById('card-title').textContent = fullName(p);
   const body = document.getElementById('card-body');
   const rows = [
-    ['النوع', p.gender==='m'?'ذكر':'أنثى'],
-    ['الحالة', p.deceased? ('متوفى'+(p.death_confirmed?' (مؤكد)':'')) : 'حي'],
     ['تاريخ الميلاد', p.birth_date], ['تاريخ الوفاة', p.death_date],
     ['السكن', p.addr1],
     ['المهنة', p.job],
@@ -2239,48 +2176,22 @@ function openPersonCard(pid){
   const kids = childrenOf(pid);
   let html = '<div style="display:flex;flex-direction:column;gap:8px;font-size:14px">';
   if(p.photo){ html += `<img src="${p.photo}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--line);margin-bottom:4px">`; }
-  const quickBtns = [];
-  let waNumber = p.whatsapp, waVia = null;
-  if(!waNumber){
-    const spouse = spouseOptions(pid)[0];
-    if(spouse && spouse.whatsapp){ waNumber = spouse.whatsapp; waVia = spouse; }
-    else if(p.father_id && state.people[p.father_id] && state.people[p.father_id].whatsapp){ waVia = state.people[p.father_id]; waNumber = waVia.whatsapp; }
-  }
-  if(waNumber){
-    const waDigits = waNumber.replace(/[^\d]/g,'');
-    if(waDigits){
-      const label = waVia ? `واتساب (رقم ${fullName(waVia)})` : 'واتساب';
-      quickBtns.push(`<a href="https://wa.me/${waDigits}" target="_blank" style="flex:1;text-align:center;padding:8px;border-radius:9px;background:#DFF3E1;color:#1F6B31;text-decoration:none;font-weight:700;font-size:13px">💬 ${label}</a>`);
-      quickBtns.push(`<a href="tel:${waDigits}" style="flex:1;text-align:center;padding:8px;border-radius:9px;background:var(--parchment-deep);color:var(--ink);text-decoration:none;font-weight:700;font-size:13px">📞 اتصال</a>`);
-    }
-  }
-  if(quickBtns.length) html += `<div style="display:flex;gap:8px;margin-bottom:4px">${quickBtns.join('')}</div>`;
   html += '</div>';
 
   html += `<div class="field" style="margin-top:4px;background:var(--parchment-deep);border-radius:9px;padding:10px 12px">
-    <label>🎉 الأحداث والدعوات (إضافة/عرض)</label>
+    <label>🎉 أحداث وذكريات</label>
     <div id="card-events-list" style="display:flex;flex-direction:column;gap:6px"></div>
     <div style="border-top:1.5px solid var(--line);margin-top:10px;padding-top:10px;display:flex;flex-direction:column;gap:10px">
       <div class="row2">
-        <div class="field"><label>نوع الحدث</label>
-          <select id="card-event-type">${Object.keys(EVENT_TEMPLATES).map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+        <div class="field"><label>الحدث (اختياري)</label>
+          <select id="card-event-type"><option value="">--</option>${EVENT_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
         </div>
-        <div class="field"><label>التاريخ</label><input type="text" id="card-event-date" placeholder="اختياري"></div>
+        <div class="field"><label>التاريخ (اختياري)</label><input type="text" id="card-event-date"></div>
       </div>
-      <div class="field"><label>المكان</label><input type="text" id="card-event-place" placeholder="اختياري"></div>
-      <div class="field"><label>نص الدعوة/الإشعار (يتعبّى تلقائيًا، وتقدر تعدّله)</label>
-        <textarea id="card-event-text" rows="2" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:Cairo"></textarea>
+      <div class="row2">
+        <div class="field"><label>المكان (اختياري)</label><input type="text" id="card-event-place"></div>
+        <div class="field"><label>الحضور (اختياري)</label><input type="text" id="card-event-attendance"></div>
       </div>
-      <div class="field"><label>مستوى النشر (يُحسب من الشجرة الفعلية -- كل درجة تشمل تلقائيًا كل ما قبلها)</label>
-        <select id="card-event-level">
-          <option value="first">الدرجة الأولى (أب/أم/إخوة/أبناء)</option>
-          <option value="second">الدرجة الثانية (+ أجداد/أحفاد)</option>
-          <option value="third">الدرجة الثالثة (+ أعمام/أخوال/أبناء عم وخال)</option>
-          <option value="all">الجميع</option>
-        </select>
-      </div>
-      <div id="card-event-audience" class="hint"></div>
-      <button class="btn" id="card-add-event">➕ حفظ الحدث وحساب المستلمين</button>
     </div>
   </div>`;
 
@@ -2290,8 +2201,6 @@ function openPersonCard(pid){
   } else {
     html += '<div class="hint">لا توجد بيانات إضافية مسجّلة لهذا الشخص بعد.</div>';
   }
-  html += `<div><b>الزوج/ة:</b> ${spouses.length? spouses.map(fullName).join('، ') : '—'}</div>`;
-  html += `<div><b>الأبناء (على الشجرة):</b> ${kids.length? kids.map(fullName).join('، ') : '—'}</div>`;
   html += '</div>';
 
   // This workaround only makes sense for a blood daughter of the family (nasab blocks her
@@ -2332,49 +2241,9 @@ function openPersonCard(pid){
     };
   }
 
-  const typeSel = document.getElementById('card-event-type');
-  const dateInp = document.getElementById('card-event-date');
-  const placeInp = document.getElementById('card-event-place');
-  const textArea = document.getElementById('card-event-text');
-  const levelSel = document.getElementById('card-event-level');
-  function refillTemplate(){
-    const fn = EVENT_TEMPLATES[typeSel.value];
-    textArea.value = fn? fn(fullName(p), dateInp.value.trim(), placeInp.value.trim(), p.gender) : '';
-    levelSel.value = EVENT_DEFAULT_LEVEL[typeSel.value] || 'first';
-    refreshAudiencePreview();
-  }
-  function refreshAudiencePreview(){
-    const audience = computeEventAudience(pid, levelSel.value);
-    const box = document.getElementById('card-event-audience');
-    const cascadeNote = levelSel.value==='second' ? ' (يشمل تلقائيًا الدرجة الأولى)'
-      : levelSel.value==='third' ? ' (يشمل تلقائيًا الأولى والثانية)'
-      : levelSel.value==='all' ? ' (يشمل الجميع بما فيهم كل الدرجات)' : '';
-    if(!audience.length){ box.textContent = 'لا يوجد أقارب مسجّلين بعد ضمن هذا المستوى.'; return; }
-    box.innerHTML = 'سيشمل هذا المستوى' + cascadeNote + ' (' + audience.length + '): ' +
-      audience.map(a=>`${a.label}: ${fullName(a.person)}`).join('، ');
-  }
-  typeSel.addEventListener('change', refillTemplate);
-  dateInp.addEventListener('input', refillTemplate);
-  placeInp.addEventListener('input', refillTemplate);
-  levelSel.addEventListener('change', refreshAudiencePreview);
-  refillTemplate();
-
-  document.getElementById('card-add-event').onclick=()=>{
-    pushUndo();
-    if(!p.events) p.events=[];
-    const ev = {
-      id: uid('ev'), type: typeSel.value, date: dateInp.value.trim(), place: placeInp.value.trim(),
-      text: textArea.value.trim(), level: levelSel.value,
-      recipients: computeEventAudience(pid, levelSel.value).map(a=>a.person.id),
-    };
-    p.events.push(ev);
-    logAction(`تم تسجيل حدث "${ev.type}" لـ${fullName(p)}`);
-    saveData(); renderCardEvents(pid);
-    toast('تم حفظ الحدث');
-  };
-  document.getElementById('card-edit-btn').onclick=()=>{ closeAllModals(); openEditPerson(pid); };
   openModal('modal-card');
 }
+
 
 function renderExternalChildren(pid){
   const p = state.people[pid];
@@ -2394,78 +2263,19 @@ function renderExternalChildren(pid){
     };
   });
 }
-function buildEventInviteLink(personName, ev, senderPhone){
-  const payload = { personName, type: ev.type, date: ev.date, place: ev.place, text: ev.text, senderPhone: senderPhone||'' };
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  return location.origin + location.pathname + '#eventinvite=' + encoded;
-}
-function showEventInviteView(data){
-  document.body.innerHTML = `
-    <div style="max-width:480px;margin:60px auto;padding:24px;font-family:Cairo,sans-serif;background:#FFFCF5;border:1.5px solid #C9BFA4;border-radius:16px;text-align:center">
-      <div style="font-family:'Markazi Text',serif;font-size:24px;font-weight:700;margin-bottom:6px">🎉 دعوة/إشعار عائلي</div>
-      <div style="font-size:16px;font-weight:700;margin-top:10px">${data.type||''}${data.personName? ' -- '+data.personName:''}</div>
-      <div style="font-size:13.5px;color:#4B5A57;margin-top:6px">${data.date||''}${data.place? ' — '+data.place:''}</div>
-      <div style="font-size:14px;margin-top:14px;line-height:1.8">${data.text||''}</div>
-      <div style="margin-top:18px;text-align:right">
-        <label style="font-size:12.5px;font-weight:700">اسمك (عشان ردّك يوصله باسمك)</label>
-        <input id="invite-your-name" placeholder="اكتب اسمك هنا" style="width:100%;box-sizing:border-box;margin-top:6px;padding:9px 12px;border:1.5px solid #C9BFA4;border-radius:9px;font-family:Cairo">
-      </div>
-      <div id="invite-actions" style="display:flex;flex-direction:column;gap:8px;margin-top:14px"></div>
-      <div id="invite-done" style="display:none;margin-top:14px;font-weight:700;color:#1F6B31">✓ اتسجل ردّك، وهيتفتحلك واتساب عشان تبعته فعليًا.</div>
-    </div>`;
-  const actions = document.getElementById('invite-actions');
-  const isSad = data.type==='وفاة' || data.type==='عزاء';
-  const options = isSad ? [['أعزي']] : [['سأحضر'],['لن أحضر']];
-  options.push(['علمت']);
-  options.forEach(([label])=>{
-    const btn = document.createElement('button');
-    btn.textContent = label;
-    btn.style.cssText = 'padding:10px;border-radius:9px;border:1.5px solid #C9BFA4;background:#F7F2E7;font-family:Cairo;font-weight:700;cursor:pointer';
-    btn.onclick = ()=>{
-      const yourName = document.getElementById('invite-your-name').value.trim() || 'أحد أفراد العائلة';
-      try{
-        const received = JSON.parse(localStorage.getItem('received-events')||'[]');
-        received.push({ ...data, response: label, respondentName: yourName, receivedAt: new Date().toISOString() });
-        localStorage.setItem('received-events', JSON.stringify(received));
-      }catch(e){}
-      actions.style.display='none';
-      document.getElementById('invite-done').style.display='block';
-      if(data.senderPhone){
-        const digits = data.senderPhone.replace(/[^\d]/g,'');
-        const msg = `${yourName} رد على دعوة "${data.type}${data.personName? ' -- '+data.personName:''}": ${label}`;
-        window.open('https://wa.me/'+digits+'?text='+encodeURIComponent(msg), '_blank');
-      }
-    };
-    actions.appendChild(btn);
-  });
-}
-
 function renderCardEvents(pid){
   const p = state.people[pid];
   const list = document.getElementById('card-events-list');
   const events = p.events||[];
   if(!events.length){ list.innerHTML = '<div class="hint">لا توجد أحداث مسجّلة بعد.</div>'; return; }
-  list.innerHTML = events.map(ev=>{
-    const recipients = (ev.recipients||[]).map(id=>state.people[id]).filter(Boolean);
-    const waButtons = recipients.map(r=>{
-      const contact = resolveContact(r);
-      const link = contact? waLink(contact.phone, ev.text||''): null;
-      const label = contact && contact.via ? `${fullName(r)} (عبر ${fullName(contact.via)})` : fullName(r);
-      return link
-        ? `<a href="${link}" target="_blank" style="display:inline-block;margin:3px;padding:4px 10px;border-radius:14px;background:#DFF3E1;color:#1F6B31;font-size:12px;text-decoration:none;font-weight:700">💬 ${label}</a>`
-        : `<span style="display:inline-block;margin:3px;padding:4px 10px;border-radius:14px;background:var(--parchment-deep);color:var(--ink-soft);font-size:12px">${label} (لا يوجد تواصل مباشر)</span>`;
-    }).join('');
-    const inviteLink = buildEventInviteLink(fullName(p), ev, getSenderWhatsApp());
-    return `<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px">
+  list.innerHTML = events.map(ev=>`
+    <div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span><b>${ev.type}</b>${ev.date? ' — '+ev.date:''}${ev.place? ' — '+ev.place:''}</span>
+        <span><b>${ev.type||'حدث'}</b>${ev.date? ' — '+ev.date:''}${ev.place? ' — '+ev.place:''}</span>
         <button class="btn" style="padding:3px 9px;font-size:12px" data-ev="${ev.id}">حذف</button>
       </div>
-      ${ev.text? `<div style="margin-top:6px;color:var(--ink-soft)">${ev.text}</div>`:''}
-      <div style="margin-top:6px">${waButtons || '<span class="hint">لا يوجد مستلمون بعد</span>'}</div>
-      <div style="margin-top:6px"><a href="${inviteLink}" target="_blank" style="font-size:11.5px;color:var(--gold)">🔗 رابط دعوة عام (لأي طريقة إرسال) -- الرد عليه يُسجَّل تلقائيًا عند المستلم</a></div>
-    </div>`;
-  }).join('');
+      ${ev.attendance? `<div style="margin-top:6px;color:var(--ink-soft)">الحضور: ${ev.attendance}</div>`:''}
+    </div>`).join('');
   list.querySelectorAll('[data-ev]').forEach(btn=>{
     btn.onclick=()=>{
       pushUndo();
@@ -2474,6 +2284,51 @@ function renderCardEvents(pid){
     };
   });
 }
+// Reads whatever is in the small event form and saves it as a new event for the open person's
+// card, if anything was actually filled in. Returns the saved event (or null) so callers like
+// the broadcast shortcut can reuse its fields.
+function saveOpenCardEvent(){
+  const pid = cardOpenPid;
+  const p = pid ? state.people[pid] : null;
+  if(!p) return null;
+  const typeEl = document.getElementById('card-event-type');
+  const dateEl = document.getElementById('card-event-date');
+  const placeEl = document.getElementById('card-event-place');
+  const attEl = document.getElementById('card-event-attendance');
+  const type = typeEl? typeEl.value : '';
+  const date = dateEl? dateEl.value.trim() : '';
+  const place = placeEl? placeEl.value.trim() : '';
+  const attendance = attEl? attEl.value.trim() : '';
+  if(!(type || date || place || attendance)) return null;
+  pushUndo();
+  if(!p.events) p.events=[];
+  const ev = { id: uid('ev'), type: type||'أخرى', date, place, attendance };
+  p.events.push(ev);
+  logAction(`تم تسجيل حدث "${ev.type}" لـ${fullName(p)}`);
+  saveData();
+  return ev;
+}
+// "💾 حفظ" -- just saves whatever's filled in and closes the card.
+document.getElementById('card-save-close-btn').addEventListener('click',()=>{
+  saveOpenCardEvent();
+  cardOpenPid = null;
+  closeAllModals();
+});
+// "🎉 دعوات ومناسبات" -- saves the event too, then jumps straight to the top broadcast
+// composer with the message pre-filled from the event/date/place so nothing needs retyping.
+document.getElementById('card-broadcast-btn').addEventListener('click',()=>{
+  const ev = saveOpenCardEvent();
+  cardOpenPid = null;
+  closeAllModals();
+  document.getElementById('btn-broadcast').click();
+  if(ev){
+    const lines = [];
+    if(ev.type) lines.push('🎉 '+ev.type);
+    if(ev.date) lines.push('بتاريخ: '+ev.date);
+    if(ev.place) lines.push('في: '+ev.place);
+    document.getElementById('bc-text').value = lines.join('\n');
+  }
+});
 
 /* ============================= ADD RELATION ============================= */
 function openAddRelation(baseId){
@@ -2927,15 +2782,6 @@ function renderBroadcastPicker(query){
 document.getElementById('bc-generate').addEventListener('click',()=>{
   const text = document.getElementById('bc-text').value.trim();
   if(!text){ toast('اكتب نص الرسالة الأول'); return; }
-  const track = document.getElementById('bc-track').checked;
-  const senderPhone = getSenderWhatsApp();
-  if(track && !senderPhone){
-    toast('لتفعيل تتبّع الردود، سجّل رقم واتسابك انت في ⚙️ الإعدادات الأول');
-    return;
-  }
-  const finalText = track
-    ? text + '\n\nمن فضلك رد من هنا: ' + buildEventInviteLink('', {type:'رسالة عامة', date:'', place:'', text}, senderPhone)
-    : text;
   const mode = document.querySelector('input[name=bc-mode]:checked').value;
   const checkedIds = new Set(Array.from(document.querySelectorAll('.bc-person-check:checked')).map(el=>el.value));
   let targets;
@@ -2948,7 +2794,7 @@ document.getElementById('bc-generate').addEventListener('click',()=>{
   const results = document.getElementById('bc-results');
   const rows = targets.map(p=>{
     const contact = resolveContact(p);
-    const link = contact? waLink(contact.phone, finalText): null;
+    const link = contact? waLink(contact.phone, text): null;
     const label = contact && contact.via ? `${fullName(p)} (عبر ${fullName(contact.via)})` : fullName(p);
     return link
       ? `<a href="${link}" target="_blank" class="bc-sent-link" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:9px;background:#DFF3E1;color:#1F6B31;text-decoration:none;font-weight:700;font-size:13px">💬 ${label}<span>إرسال ›</span></a>`
@@ -2995,7 +2841,6 @@ document.getElementById('btn-save-ultimate-ancestor').addEventListener('click',(
 if(document.getElementById('btn-settings')) document.getElementById('btn-settings').addEventListener('click',()=>{
   document.getElementById('settings-whatsapp-enabled').checked = state.settings? state.settings.whatsapp_enabled!==false : true;
   document.getElementById('settings-pin').value = (state.settings && state.settings.pin) || '';
-  document.getElementById('settings-sender-whatsapp').value = getSenderWhatsApp();
   openModal('modal-settings');
 });
 document.getElementById('btn-save-settings').addEventListener('click',()=>{
@@ -3003,12 +2848,20 @@ document.getElementById('btn-save-settings').addEventListener('click',()=>{
   if(!state.settings) state.settings = {};
   state.settings.whatsapp_enabled = document.getElementById('settings-whatsapp-enabled').checked;
   state.settings.pin = document.getElementById('settings-pin').value.trim() || null;
-  state.settings.sender_whatsapp = document.getElementById('settings-sender-whatsapp').value.replace(/[^\d+]/g,'').trim() || null;
   saveData(); closeAllModals(); toast('تم حفظ الإعدادات');
 });
-function getSenderWhatsApp(){
-  return (state.settings && state.settings.sender_whatsapp) || '';
-}
+// "تواصل معنا" goes straight to email -- no phone number to configure, just two ready-made
+// options (report a problem / suggest a feature) that open the person's mail app pre-addressed.
+const CONTACT_US_EMAIL = 'mosaab.bio.1@gmail.com';
+document.getElementById('btn-contact-us').addEventListener('click',()=>{
+  openModal('modal-contact-us');
+});
+document.getElementById('contact-report-problem').addEventListener('click',()=>{
+  window.location.href = `mailto:${CONTACT_US_EMAIL}?subject=${encodeURIComponent('إبلاغ عن مشكلة -- شجرة العائلة')}&body=${encodeURIComponent('اكتب المشكلة اللي واجهتك هنا بالتفصيل:\n\n')}`;
+});
+document.getElementById('contact-suggest-feature').addEventListener('click',()=>{
+  window.location.href = `mailto:${CONTACT_US_EMAIL}?subject=${encodeURIComponent('اقتراح ميزة -- شجرة العائلة')}&body=${encodeURIComponent('اكتب اقتراحك هنا بالتفصيل:\n\n')}`;
+});
 
 /* ============================= MERGE ============================= */
 document.getElementById('btn-merge').addEventListener('click',()=>{
@@ -3294,27 +3147,6 @@ document.getElementById('btn-backup').addEventListener('click',()=>{
   setTimeout(()=>URL.revokeObjectURL(url), 2000);
   toast('تم تنزيل النسخة الاحتياطية');
 });
-document.getElementById('btn-restore').addEventListener('click',()=>{
-  document.getElementById('restore-file').click();
-});
-document.getElementById('restore-file').addEventListener('change',(e)=>{
-  const file = e.target.files[0]; if(!file) return;
-  if(!confirm('هيتم استبدال الشجرة الحالية بالكامل بمحتوى الملف ده. هل أنت متأكد؟')){ e.target.value=''; return; }
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    try{
-      const parsed = JSON.parse(reader.result);
-      if(!parsed.people) throw new Error('ملف غير صالح');
-      pushUndo();
-      state = parsed;
-      if(!state.settings) state.settings = { whatsapp_enabled: true };
-      saveData(); render(); centerTree();
-      toast('تم استعادة النسخة الاحتياطية بنجاح');
-    }catch(err){ toast('الملف ده مش نسخة احتياطية صالحة'); }
-    e.target.value='';
-  };
-  reader.readAsText(file);
-});
 
 /* ============================= GEDCOM EXPORT ============================= */
 // GEDCOM is the universal genealogy file format -- exporting to it means the tree isn't
@@ -3361,23 +3193,6 @@ if(document.getElementById('btn-gedcom')) document.getElementById('btn-gedcom').
 /* ============================= WHAT'S MISSING CHECKLIST ============================= */
 function gensOfCurrentTree(){ return computeGenerations(); }
 
-document.getElementById('btn-received-events').addEventListener('click',()=>{
-  const body = document.getElementById('received-events-body');
-  let received = [];
-  try{ received = JSON.parse(localStorage.getItem('received-events')||'[]'); }catch(e){}
-  if(!received.length){
-    body.innerHTML = '<div class="hint">لسه ما استلمتش أي دعوة عبر رابط دعوة حدث. لما حد يبعتلك رابط دعوة ويتم فتحه على الجهاز ده، ردّك عليه هيتسجل هنا.</div>';
-  } else {
-    body.innerHTML = received.slice().reverse().map(r=>`
-      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between"><b>${r.type||''}</b><span style="color:var(--ink-soft);font-size:12px">ردّك: ${r.response||''}</span></div>
-        <div style="font-size:13px;margin-top:4px"><b>${r.personName||''}</b>${r.place? ' — '+r.place:''}${r.date? ' — '+r.date:''}</div>
-        ${r.text? `<div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">${r.text}</div>`:''}
-      </div>`).join('');
-  }
-  openModal('modal-received-events');
-});
-
 /* ============================= SEARCH ============================= */
 const searchInput = document.getElementById('search-input');
 const searchResults = document.getElementById('search-results');
@@ -3401,96 +3216,6 @@ searchInput.addEventListener('input', ()=>{
 document.addEventListener('click',(e)=>{
   if(!e.target.closest('#search-results') && e.target!==searchInput) searchResults.style.display='none';
 });
-
-/* ============================= EXPORT / PRINT ============================= */
-document.getElementById('btn-export').addEventListener('click',()=>{
-  if(confirm('دوس "موافق" لتصدير الشجرة كصورة PNG، أو "إلغاء" لفتح معاينة طباعة (تقدر تحفظها كـ PDF من نافذة الطباعة).')){
-    exportTreeAsPng();
-  } else {
-    window.print();
-  }
-});
-
-/* ============================= FAMILY BOOK (auto PDF export) ============================= */
-document.getElementById('btn-family-book').addEventListener('click',()=>{
-  const people = personList().filter(p=>!p.alias_of);
-  if(!people.length){ toast('الشجرة فاضية، مفيش حاجة تتصدّر'); return; }
-  const gens = computeGenerations();
-  const sorted = people.slice().sort((a,b)=>(gens[a.id]||0)-(gens[b.id]||0) || (a._order||0)-(b._order||0));
-  const container = document.getElementById('family-book-container');
-  let html = `<div style="max-width:800px;margin:0 auto;font-family:Cairo,sans-serif;direction:rtl">
-    <div style="text-align:center;padding:60px 0 40px">
-      <div style="font-family:'Markazi Text',serif;font-size:40px;font-weight:700">🌳 الكتاب العائلي</div>
-      <div style="color:#4B5A57;margin-top:8px">تم إنشاؤه بتاريخ ${new Date().toLocaleDateString('ar-EG')}</div>
-    </div>`;
-  let lastGen = null;
-  sorted.forEach(p=>{
-    const g = gens[p.id]||0;
-    if(g!==lastGen){ html += `<div style="font-size:20px;font-weight:800;margin:24px 0 10px;border-bottom:2px solid #B98A2E;padding-bottom:4px">الجيل ${g}</div>`; lastGen=g; }
-    const spouses = spouseOptions(p.id).map(fullName).join('، ');
-    const kids = childrenOf(p.id).map(fullName).join('، ');
-    const events = (p.events||[]).map(e=>`${e.type}${e.date?' ('+e.date+')':''}`).join('، ');
-    html += `<div class="book-person">
-      ${p.photo? `<img src="${p.photo}">` : ''}
-      <div>
-        <div style="font-size:17px;font-weight:800">${fullName(p)} ${p.deceased?'(متوفى)':''}</div>
-        <div style="font-size:12.5px;color:#4B5A57;margin-top:3px">
-          ${p.job? 'المهنة: '+p.job+' — ':''}${p.birth_date? 'الميلاد: '+p.birth_date+' — ':''}${p.death_date? 'الوفاة: '+p.death_date:''}
-        </div>
-        ${spouses? `<div style="font-size:12.5px;margin-top:3px"><b>الزوج/ة:</b> ${spouses}</div>`:''}
-        ${kids? `<div style="font-size:12.5px;margin-top:3px"><b>الأبناء:</b> ${kids}</div>`:''}
-        ${events? `<div style="font-size:12.5px;margin-top:3px;color:#B98A2E"><b>أحداث:</b> ${events}</div>`:''}
-      </div>
-    </div>`;
-  });
-  html += '</div>';
-  container.innerHTML = html;
-  document.body.classList.add('printing-book');
-  window.print();
-  const cleanup = ()=>{ document.body.classList.remove('printing-book'); container.innerHTML=''; window.removeEventListener('afterprint', cleanup); };
-  window.addEventListener('afterprint', cleanup);
-});
-
-document.getElementById('btn-share-book').addEventListener('click', async ()=>{
-  const text = `📖 كتاب العائلة\nهبعتلك نسخة PDF منه دلوقتي -- افتح "الكتاب العائلي" من التطبيق، اختار "حفظ كـ PDF" من نافذة الطباعة، وابعتها هنا كملف.`;
-  if(navigator.share){
-    try{ await navigator.share({title:'كتاب العائلة', text}); }catch(e){ /* المستخدم لغى المشاركة */ }
-  } else {
-    window.open('https://wa.me/?text='+encodeURIComponent(text), '_blank');
-  }
-  toast('التطبيق مش بيقدر يرفق ملف PDF جاهز تلقائيًا -- افتح "الكتاب العائلي"، احفظه PDF من نافذة الطباعة، وأرفقه يدويًا في نفس المحادثة');
-});
-function exportTreeAsPng(){
-  const svgEl = document.getElementById('tree-svg');
-  const w = parseInt(svgEl.getAttribute('width'))||1200, h = parseInt(svgEl.getAttribute('height'))||700;
-  const clone = svgEl.cloneNode(true);
-  clone.setAttribute('width', w); clone.setAttribute('height', h);
-  // inline the CSS variables as literal colors so the exported PNG isn't blank/black
-  const style = document.createElement('style');
-  style.textContent = getComputedStyle(document.documentElement).cssText || '';
-  const serializer = new XMLSerializer();
-  let svgString = serializer.serializeToString(clone);
-  const img = new Image();
-  const svgBlob = new Blob([svgString], {type:'image/svg+xml;charset=utf-8'});
-  const url = URL.createObjectURL(svgBlob);
-  img.onload = ()=>{
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#F7F2E7'; ctx.fillRect(0,0,w,h);
-    ctx.drawImage(img,0,0,w,h);
-    URL.revokeObjectURL(url);
-    canvas.toBlob(blob=>{
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'شجرة-العائلة.png';
-      document.body.appendChild(a); a.click(); a.remove();
-      toast('تم تصدير الصورة');
-    });
-  };
-  img.onerror = ()=>{ toast('تعذّر تصدير الصورة -- جرّب الطباعة بدل ذلك'); URL.revokeObjectURL(url); };
-  img.src = url;
-}
 
 /* ============================= STATS MODAL ============================= */
 document.getElementById('btn-stats').addEventListener('click',()=>{
@@ -3900,13 +3625,6 @@ function applyDescendantHighlight(){
 /* ============================= READ-ONLY VIEW ============================= */
 async function checkHash(){
   const h = location.hash;
-  if(h.startsWith('#eventinvite=')){
-    try{
-      const data = JSON.parse(decodeURIComponent(escape(atob(h.slice(13)))));
-      showEventInviteView(data);
-      return true;
-    }catch(e){ /* ignore */ }
-  }
   if(h.startsWith('#edit=')){
     try{
       const data = await decodeTreePayload(h.slice(6));
@@ -3925,6 +3643,7 @@ async function checkHash(){
       document.querySelectorAll('#topbar .tb-btn').forEach(b=>b.style.display='none');
       render();
       centerTree();
+      setTimeout(centerTree, 80);
       document.getElementById('btn-clone-editable').onclick=async ()=>{
         if(!confirm('هيتم تسجيل بيانات المُرسل وحفظ هذه الشجرة كصفحة مستقلة قابلة للتعديل على جهازك. تكمل؟')) return;
         readOnly = false;
