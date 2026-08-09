@@ -3696,5 +3696,14 @@ document.getElementById('btn-undo').addEventListener('click', doUndo);
 })();
 })();
 </script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(err){
+      console.log('SW registration failed:', err);
+    });
+  });
+}
+</script>
 </body>
 </html>
