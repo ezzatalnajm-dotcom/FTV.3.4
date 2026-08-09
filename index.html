@@ -3747,6 +3747,34 @@ if('serviceWorker' in navigator){
     btn.style.display = 'none';
     deferredPrompt = null;
   });
+
+  // iOS (Safari & Chrome-on-iOS both use WebKit and never fire beforeinstallprompt),
+  // so show manual "Add to Home Screen" instructions instead, unless already installed.
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isStandalone = window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+  if(isIOS && !isStandalone){
+    var iosBtn = document.createElement('button');
+    iosBtn.id = 'ios-install-btn';
+    iosBtn.textContent = '📲 تثبيت التطبيق على الشاشة الرئيسية';
+    iosBtn.style.cssText = btn.style.cssText;
+    document.body.appendChild(iosBtn);
+
+    var iosTip = document.createElement('div');
+    iosTip.id = 'ios-install-tip';
+    iosTip.style.cssText = 'display:none;position:fixed;left:16px;right:16px;bottom:80px;z-index:99999;' +
+      'background:#fff;color:#2a1f04;border:2px solid #B98A2E;border-radius:14px;padding:14px 16px;' +
+      'font-family:Cairo,sans-serif;font-size:14.5px;line-height:1.9;box-shadow:0 6px 22px rgba(0,0,0,.35);text-align:right;';
+    iosTip.innerHTML = 'عشان تثبّت التطبيق على آيفون:<br>' +
+      '1️⃣ دوس زرار المشاركة <b>⬆️ Share</b> تحت (أو فوق) في المتصفح<br>' +
+      '2️⃣ مرّر واختار <b>"Add to Home Screen"</b> (إضافة إلى الشاشة الرئيسية)<br>' +
+      '3️⃣ دوس <b>"Add"</b> (إضافة) فوق يمين';
+    document.body.appendChild(iosTip);
+
+    iosBtn.addEventListener('click', function(){
+      iosTip.style.display = iosTip.style.display==='none' ? 'block' : 'none';
+    });
+  }
 })();
 </script>
 </body>
