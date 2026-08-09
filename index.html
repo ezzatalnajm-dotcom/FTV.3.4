@@ -57,6 +57,22 @@
     #topbar #search-input{ width:100px !important; flex-shrink:0; }
     #topbar .tb-stat{ flex-shrink:0; white-space:nowrap; }
   }
+
+  /* ===== Floating always-visible add-person button (mobile) ===== */
+  #fab-add-person{
+    position:fixed; z-index:9000;
+    left:50%; bottom:22px; transform:translateX(-50%);
+    width:58px; height:58px; border-radius:50%;
+    background:linear-gradient(180deg,var(--gold-soft,#E6C77E),var(--gold,#B98A2E));
+    border:2px solid #fff; box-shadow:0 4px 14px rgba(0,0,0,.35);
+    display:none; align-items:center; justify-content:center;
+    font-size:32px; font-weight:800; color:#fff; cursor:pointer;
+    line-height:1; user-select:none;
+  }
+  #fab-add-person:active{ transform:translateX(-50%) scale(0.93); }
+  @media (max-width: 700px){
+    #fab-add-person{ display:flex; }
+  }
   #topbar h1{font-family:'Markazi Text',serif;font-size:26px;font-weight:700;margin:0 10px 0 0;color:var(--ink);letter-spacing:.5px;flex-shrink:0;}
   .tb-btn{
     display:flex;align-items:center;gap:6px;background:var(--card-bg);border:1.5px solid var(--line);
@@ -185,6 +201,7 @@
 </style>
 </head>
 <body>
+<button id="fab-add-person" title="إضافة شخص" aria-label="إضافة شخص">+</button>
 <div id="app">
   <div id="readonly-banner">🔒 وضع العرض فقط — رابط مشاركة للقراءة &nbsp;
     <button id="btn-clone-editable" style="margin-right:10px;padding:4px 12px;border-radius:16px;border:1.5px solid #2a1f04;background:#fff;font-weight:700;font-size:12.5px;cursor:pointer">📋 احفظ نسخة قابلة للتعديل عندي</button>
@@ -1524,6 +1541,11 @@ function render(){
     [circle,plus].forEach(elm=>elm.addEventListener('click',()=>document.getElementById('btn-add-root').click()));
     resizeCanvas(1000,600);
     lastPositions = {};
+    // Center this hint circle (at svg coords 400,230) within the visible viewport,
+    // so on mobile the user sees it immediately without needing to pan the canvas.
+    const vw = wrap.clientWidth || window.innerWidth;
+    const vh = wrap.clientHeight || window.innerHeight;
+    camera = { x: vw/2 - 400, y: vh/2 - 230, scale: 1 };
     applyCamera();
     return;
   }
@@ -1935,6 +1957,8 @@ document.addEventListener('click',(e)=>{
   }
 });
 document.getElementById('subtree-back').addEventListener('click', async ()=>{ await switchToTree('main'); });
+
+document.getElementById('fab-add-person').addEventListener('click', ()=>{ document.getElementById('btn-add-root').click(); });
 
 
 document.getElementById('btn-add-root').addEventListener('click',()=>{
