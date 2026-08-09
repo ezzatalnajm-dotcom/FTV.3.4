@@ -3704,6 +3704,37 @@ if('serviceWorker' in navigator){
     });
   });
 }
+
+// PWA install button
+(function(){
+  var deferredPrompt = null;
+  var btn = document.createElement('button');
+  btn.id = 'pwa-install-btn';
+  btn.textContent = '📲 تثبيت التطبيق على الشاشة الرئيسية';
+  btn.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:99999;' +
+    'background:#B98A2E;color:#fff;border:none;border-radius:999px;padding:12px 22px;' +
+    'font-family:Cairo,sans-serif;font-size:15px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.3);' +
+    'display:none;cursor:pointer;';
+  document.body.appendChild(btn);
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    btn.style.display = 'block';
+  });
+
+  btn.addEventListener('click', function(){
+    if(!deferredPrompt) return;
+    btn.style.display = 'none';
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(function(){ deferredPrompt = null; });
+  });
+
+  window.addEventListener('appinstalled', function(){
+    btn.style.display = 'none';
+    deferredPrompt = null;
+  });
+})();
 </script>
 </body>
 </html>
