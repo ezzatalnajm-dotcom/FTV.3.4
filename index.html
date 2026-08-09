@@ -822,6 +822,7 @@ async function loadData(){
   } else {
     render();
     centerTree();
+    setTimeout(centerTree, 80);
     checkBirthdayBanner();
     maybeShowOnboarding();
   }
@@ -1785,7 +1786,13 @@ wrap.addEventListener('touchcancel',()=>{ touchMode=null; });
 
 function centerTree(){
   const ids = Object.keys(lastPositions);
-  if(!ids.length){ camera={x:40,y:20,scale:1}; applyCamera(); return; }
+  if(!ids.length){
+    const vw = wrap.clientWidth || window.innerWidth;
+    const vh = wrap.clientHeight || window.innerHeight;
+    camera = { x: vw/2 - 400, y: vh/2 - 230, scale: 1 };
+    applyCamera();
+    return;
+  }
   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
   ids.forEach(id=>{
     const p = lastPositions[id];
